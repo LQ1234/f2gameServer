@@ -1,4 +1,3 @@
-//test:donkey kong
 #define ASIO_STANDALONE
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
@@ -43,8 +42,8 @@ constexpr  int viewportY = 1;//chunks
 
 constexpr unsigned int worldxChunks = 10;//set to 100 later
 constexpr unsigned int worldyChunks = 20;
-constexpr unsigned int terrainPrecision = 5;//per block
-constexpr unsigned int clippperPrecision = 5;//per block
+constexpr unsigned int terrainPrecision = 1;//per block
+constexpr unsigned int clippperPrecision = 20;//per block
 
 enum ws_event_type {
 	CONNECT,
@@ -128,7 +127,7 @@ public:
 		}
 
 
-		terrainBodyDef->position.Set(x * 10, x * 10);
+		terrainBodyDef->position.Set(0, 0);
 
 		physBody = world.CreateBody(terrainBodyDef);
 		physBody->SetUserData(new gameObjectDat(CHUNKTYPE,this));
@@ -185,14 +184,22 @@ public:
 
 
 			b2Vec2* pat = new b2Vec2[pth.size()];
+			std::cout<<"pathsize:"<< pth.size()<<"\n";
 			for (std::size_t i = 0; i < pth.size(); i++) {
+				std::cout << pth[i].X / static_cast<float>(clippperPrecision) << ","<<pth[i].Y / static_cast<float>(clippperPrecision) << "\n";
+
 				pat[i].Set(pth[i].X / static_cast<float>(clippperPrecision), pth[i].Y / static_cast<float>(clippperPrecision));
 			}
 
 			b2ChainShape chain;
-			chain.CreateChain(pat, pth.size());
+			chain.CreateLoop(pat, pth.size());
 
-			physBody->CreateFixture(&chain, 0.0f);
+			b2FixtureDef fixtureDef;
+			fixtureDef.density = 1.0f;
+			fixtureDef.friction = 0.3f;
+			fixtureDef.shape = &chain;
+			fixtureDef.restitution = 0;
+			physBody->CreateFixture(&fixtureDef);
 			delete[] pat;
 
 		}
@@ -263,7 +270,8 @@ public:
 		name = nme;
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
-		bodyDef.position.Set(worldxChunks*10/2, worldyChunks * 10);
+		bodyDef.bullet = true;
+		bodyDef.position.Set(worldxChunks*10/2, worldyChunks * 10/2+30);
 		physBody = world.CreateBody(&bodyDef); 
 
 		b2PolygonShape dynamicBox;
@@ -273,6 +281,7 @@ public:
 		fixtureDef.density = 1.0f;
 		fixtureDef.friction = 0.3f;
 		fixtureDef.shape = &dynamicBox;
+		fixtureDef.restitution = 0;
 
 		physBody->CreateFixture(&fixtureDef);
 		gameObjectDat* x=new gameObjectDat(PLAYERTYPE, this);
@@ -330,11 +339,11 @@ public:
 		b2World phys_world(phys_gravity);
 
 		b2BodyDef terrainBodyDef;
-
-
+		terrainBodyDef.type = b2_staticBody;
 		//chunk x,y goes from x,y to x+10,y+10
 		Chunk* chunk_array[worldyChunks][worldxChunks];
 		{
+
 			float terrainMins[worldxChunks];
 			for (size_t i = 0; i < worldxChunks; i++)
 			{
@@ -539,7 +548,7 @@ public:
 					aabb.lowerBound = xy1;
 					aabb.upperBound = xy2;
 					phys_world.QueryAABB(&cb, aabb);
-
+					
 					for (b2Body* bod: cb.fvp) {
 
 						gameObjectDat* dat=static_cast<gameObjectDat*>(bod->GetUserData());
@@ -573,7 +582,18 @@ public:
 							}
 							Chunk* chunkhere = chunk_array[ychunk][xchunk];
 							newViewChunks.insert(chunkhere);
+							for (b2Fixture* f = chunkhere->physBody->GetFixtureList(); f; f = f->GetNext())
+							{
+								b2ChainShape* cs = (b2ChainShape*)f->GetShape();
 
+								std::cout << "chainshape at " << xchunk << "," << ychunk <<"(" <<std::to_string( cs->GetChildCount() )<<") \n";
+								for (int i = 0; i < cs->GetChildCount();i++) {
+									b2EdgeShape n;
+									cs->GetChildEdge(&n,i);
+									std::cout<<n.m_vertex1.x<<","<< n.m_vertex1.y <<"\n";
+								}
+		
+							}
 							if (updatedChunks.count(chunkhere) || (!(thisplayer->viewChunks.count(chunkhere)))) {
 								std::cout << "chunk:" << xchunk << "," << ychunk << "\n";
 								for (auto const& x : chunkhere->materialShapes)
