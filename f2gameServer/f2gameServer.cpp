@@ -206,7 +206,7 @@ public:
 	unsigned char isWhole;
 	unsigned char materialType;
 	std::vector<float> asVec;
-	unsigned int chunkx = 0;
+	unsigned int chunkx = 0; 
 	unsigned int chunky = 0;
 
 	ClientChunkPiece(ClipperLib::Path* tc,unsigned char mT, unsigned int cx, unsigned int cy): chunkx(cx), chunky(cy){
