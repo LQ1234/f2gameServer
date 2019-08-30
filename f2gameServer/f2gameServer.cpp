@@ -16,6 +16,9 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#define _USE_MATH_DEFINES
+
+#include <math.h>
 
 #include "ListSerializer.h"
 
@@ -37,13 +40,131 @@ using websocketpp::lib::lock_guard;
 using websocketpp::lib::unique_lock;
 using websocketpp::lib::condition_variable;
 
-constexpr  int viewportX = 1;//chunks
-constexpr  int viewportY = 1;//chunks
+constexpr  int viewportX = 2;//chunks
+constexpr  int viewportY = 2;//chunks
 
-constexpr unsigned int worldxChunks = 10;//set to 100 later
+constexpr unsigned int worldxChunks = 40;//set to 100 later
 constexpr unsigned int worldyChunks = 20;
-constexpr unsigned int terrainPrecision = 1;//per block
+constexpr unsigned int terrainPrecision = 5;//per block
 constexpr unsigned int clippperPrecision = 20;//per block
+constexpr float noiseRandomSeperation = 10 * 100;
+struct objecthitboxinfo {
+	static const b2Vec2 player;
+};
+const b2Vec2 objecthitboxinfo::player = b2Vec2(1, 1);
+
+struct TerrainGeneration {
+
+	static std::vector<float> getBiomePercentages(float x) {
+		
+		std::vector<float> biomePercentages(3);
+		biomePercentages[0] = (SimplexNoise::noise(x * .01 + noiseRandomSeperation * 1) + 1.1);	//PLAINS
+		biomePercentages[1] = (SimplexNoise::noise(x * .01 + noiseRandomSeperation * 2) + 1.1);	//MOUNTAINS
+		biomePercentages[2] = (SimplexNoise::noise(x * .01 + noiseRandomSeperation * 3) + 1.1); //OCEANS
+		float avr = 0;
+
+		for (float ts : biomePercentages)
+			avr += ts;
+
+		avr /= biomePercentages.size();
+
+		for (size_t i = 0; i < biomePercentages.size(); i++)
+		{
+			biomePercentages[i] /= avr;
+		}
+
+		for (size_t i = 0; i < biomePercentages.size(); i++)
+		{
+			biomePercentages[i] = std::pow(biomePercentages[i], 100);
+		}
+
+		float total = 0;
+
+		for (float ts : biomePercentages)
+			total += ts;
+		//std::cout << "at:"<<x << "\n";
+
+		for (size_t i = 0; i < biomePercentages.size(); i++)
+		{
+			biomePercentages[i] /= total;
+			//std::cout << biomePercentages[i] << "\n";
+		}
+
+		//return(biomePercentages);
+		
+		std::vector<float> ret = {1,0,0};
+		return(ret);
+
+	}
+	//PLAINS
+	static float getStoneLevelOfPlains(float x) {
+		float val= SimplexNoise::noise(x * .01 + noiseRandomSeperation * 15) * 3 + worldyChunks * 10 / 2-10;
+		return(val);
+	}
+	static float getDirtLevelOfPlains(float x) {
+		float val = getStoneLevelOfPlains(x);
+		val += SimplexNoise::noise(x * .02 + noiseRandomSeperation * 5) * .5 + 7;
+		val += SimplexNoise::noise(x + noiseRandomSeperation * 6) * .1;
+
+		return(val);
+	}
+	static float getGrassLevelOfPlains(float x) {
+		float val = getDirtLevelOfPlains(x);
+		val += .3;
+		return(val);
+	}
+	//MOUNTIAINS
+
+	static float getStoneLevelOfMountains(float x) {
+		float val = SimplexNoise::noise(x * .01) * 70 + worldyChunks * 10 / 2+30;
+		val += SimplexNoise::noise(x*.03 + noiseRandomSeperation * 7) * .1;
+
+		return(val);
+	}
+	static float getDirtLevelOfMountains(float x) {
+		float val = getStoneLevelOfMountains(x);
+		val += 0;
+		return(val);
+	}
+	static float getGrassLevelOfMountains(float x) {
+		float val = getDirtLevelOfMountains(x);
+		val += 0;
+		return(val);
+	}
+	//OCEANS
+	static float getStoneLevelOfOceans(float x) {
+		float val = SimplexNoise::noise(x * .005) * 3 + worldyChunks * 10 / 2-30;
+
+		return(val);
+	}
+	static float getDirtLevelOfOceans(float x) {
+		float val = getStoneLevelOfOceans(x);
+		val += 2;
+		return(val);
+	}
+	static float getGrassLevelOfOceans(float x) {
+		float val = getDirtLevelOfOceans(x);
+		val += 0;
+		return(val);
+	}
+	//GENERAL
+	static float getStoneLevel(float x) {
+		std::vector<float> bvals = getBiomePercentages(x);
+		float val=(getStoneLevelOfPlains(x)*bvals[0]+ getStoneLevelOfMountains(x) * bvals[1] + getStoneLevelOfOceans(x) * bvals[2]);
+		//std::cout << "stone" << val<<"\n";
+		return(val);
+	}
+	static float getDirtLevel(float x) {
+		std::vector<float> bvals = getBiomePercentages(x);
+		float val = (getDirtLevelOfPlains(x) * bvals[0] + getDirtLevelOfMountains(x) * bvals[1] + getDirtLevelOfOceans(x) * bvals[2]);
+		return(val);
+	}
+	static float getGrassLevel(float x) {
+		std::vector<float> bvals = getBiomePercentages(x);
+		float val = (getGrassLevelOfPlains(x) * bvals[0] + getGrassLevelOfMountains(x) * bvals[1] + getGrassLevelOfOceans(x) * bvals[2]);
+		return(val);
+	}
+};
 
 enum ws_event_type {
 	CONNECT,
@@ -130,7 +251,7 @@ public:
 		terrainBodyDef->position.Set(0, 0);
 
 		physBody = world.CreateBody(terrainBodyDef);
-		physBody->SetUserData(new gameObjectDat(CHUNKTYPE,this));
+		physBody->SetUserData(new gameObjectDat(CHUNKTYPE, this));
 		createBody();
 		/*
 		if (chunkInfo==-1) {
@@ -184,9 +305,7 @@ public:
 
 
 			b2Vec2* pat = new b2Vec2[pth.size()];
-			std::cout<<"pathsize:"<< pth.size()<<"\n";
 			for (std::size_t i = 0; i < pth.size(); i++) {
-				std::cout << pth[i].X / static_cast<float>(clippperPrecision) << ","<<pth[i].Y / static_cast<float>(clippperPrecision) << "\n";
 
 				pat[i].Set(pth[i].X / static_cast<float>(clippperPrecision), pth[i].Y / static_cast<float>(clippperPrecision));
 			}
@@ -208,25 +327,26 @@ public:
 
 
 };
+const std::vector< Chunk::Material> Chunk::materials = { Chunk::GRASS,  Chunk::DIRT,  Chunk::STONE };
+
 class ClientChunkPiece :Serializable {
 public:
 	unsigned char isWhole;
 	unsigned char materialType;
 	std::vector<float> asVec;
-	unsigned int chunkx = 0; 
+	unsigned int chunkx = 0;
 	unsigned int chunky = 0;
 
-	ClientChunkPiece(ClipperLib::Path* tc,unsigned char mT, unsigned int cx, unsigned int cy): chunkx(cx), chunky(cy){
+	ClientChunkPiece(ClipperLib::Path* tc, unsigned char mT, unsigned int cx, unsigned int cy) : chunkx(cx), chunky(cy) {
 		if (tc != NULL) {
 
 			isWhole = ClipperLib::Orientation(*tc);
 
 			materialType = mT;
-			std::cout << "ccp\n";
 			for (size_t i = 0; i < (*tc).size(); i++)
 			{
-				asVec.push_back((*tc)[i].X/ static_cast<float>(clippperPrecision) );
-				asVec.push_back((*tc)[i].Y/ static_cast<float>(clippperPrecision) );
+				asVec.push_back((*tc)[i].X / static_cast<float>(clippperPrecision));
+				asVec.push_back((*tc)[i].Y / static_cast<float>(clippperPrecision));
 
 			}
 		}
@@ -248,7 +368,6 @@ public:
 	};
 };
 
-const std::vector< Chunk::Material> Chunk::materials = { Chunk::GRASS,  Chunk::DIRT,  Chunk::STONE };
 
 class Player :Serializable {
 public:
@@ -262,34 +381,34 @@ public:
 	float y = 0;
 	float rot = 0;
 
-	
+
 
 	bool buttons = new bool[4];
-	Player(b2World& world,std::string nme, websocketpp::connection_hdl conhdl) {
+	Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl) {
 		hdl = conhdl;
 		name = nme;
 		b2BodyDef bodyDef;
 		bodyDef.type = b2_dynamicBody;
 		bodyDef.bullet = true;
-		bodyDef.position.Set(worldxChunks*10/2, worldyChunks * 10/2+30);
-		physBody = world.CreateBody(&bodyDef); 
+		bodyDef.position.Set(worldxChunks * 10 / 2, TerrainGeneration::getGrassLevel(worldxChunks * 10 / 2)+5);
+		physBody = world.CreateBody(&bodyDef);
 
 		b2PolygonShape dynamicBox;
-		dynamicBox.SetAsBox(1.0f, 1.0f);
+		dynamicBox.SetAsBox(objecthitboxinfo::player.x / 2, objecthitboxinfo::player.y / 2);
 
-		b2FixtureDef fixtureDef;  
+		b2FixtureDef fixtureDef;
 		fixtureDef.density = 1.0f;
-		fixtureDef.friction = 0.3f;
+		fixtureDef.friction = 1.f;
 		fixtureDef.shape = &dynamicBox;
 		fixtureDef.restitution = 0;
 
 		physBody->CreateFixture(&fixtureDef);
-		gameObjectDat* x=new gameObjectDat(PLAYERTYPE, this);
+		gameObjectDat* x = new gameObjectDat(PLAYERTYPE, this);
 		physBody->SetUserData(x);
 		wrd = &world;
 
 	}
-	~Player(){
+	~Player() {
 		delete physBody->GetUserData();
 		physBody->SetUserData(NULL);
 
@@ -297,7 +416,7 @@ public:
 		physBody = NULL;
 	}
 	void updatePosition() {
-		b2Vec2 ps=physBody->GetPosition();
+		b2Vec2 ps = physBody->GetPosition();
 		x = ps.x;
 		y = ps.y;
 		rot = physBody->GetAngle();
@@ -362,14 +481,12 @@ public:
 			ClipperLib::Paths* stonePath = new ClipperLib::Paths(1);
 
 			(*stonePath)[0] << ClipperLib::IntPoint(0, 0) << ClipperLib::IntPoint(clippperPrecision * (worldxChunks * 10), 0);
-			const float multiplier = .1;
 
 			for (int i = (worldxChunks * 10 * terrainPrecision); i >= 0; i--)
 			{
-				//std::cout << "pt " << i << "\n";
-				float val = SimplexNoise::noise(i * multiplier / terrainPrecision) * 20 + worldyChunks * 10 / 2;
+				float val = TerrainGeneration::getStoneLevel(static_cast<float>(i) / terrainPrecision);
 				minmax(i / terrainPrecision, val);
-				(*stonePath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i)/ terrainPrecision), clippperPrecision * (val));
+				(*stonePath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i) / terrainPrecision), clippperPrecision * (val));
 
 			}
 			wholeMaterialShape[Chunk::STONE] = stonePath;
@@ -379,19 +496,16 @@ public:
 			for (int i = 0; i <= (worldxChunks * 10 * terrainPrecision); i++)
 			{
 				//std::cout << "pt " << i << "\n";
-				float val = SimplexNoise::noise(i * multiplier / terrainPrecision) * 20 + worldyChunks * 10 / 2;
+				float val = TerrainGeneration::getStoneLevel(static_cast<float>(i) / terrainPrecision);
 				minmax(i / terrainPrecision, val);
-
 				(*dirtPath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i) / terrainPrecision), clippperPrecision * (val));
 
 			}
 			for (int i = (worldxChunks * 10 * terrainPrecision); i >= 0; i--)
 			{
 				//std::cout << "pt " << i << "\n";
-				float val = SimplexNoise::noise(i * multiplier / terrainPrecision) * 20 + worldyChunks * 10 / 2;
-				val += SimplexNoise::noise(i * multiplier / terrainPrecision) * 2 + 7;
+				float val = TerrainGeneration::getDirtLevel(static_cast<float>(i) / terrainPrecision);
 				minmax(i / terrainPrecision, val);
-
 				(*dirtPath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i) / terrainPrecision), clippperPrecision * (val));
 
 			}
@@ -402,21 +516,16 @@ public:
 			for (int i = 0; i <= (worldxChunks * 10 * terrainPrecision); i++)
 			{
 				//std::cout << "pt " << i << "\n";
-				float val = SimplexNoise::noise(i * multiplier / terrainPrecision) * 20 + worldyChunks * 10 / 2;
-				val += SimplexNoise::noise(i * multiplier / terrainPrecision) * 2 + 7;
+				float val = TerrainGeneration::getDirtLevel(static_cast<float>(i) / terrainPrecision);
 				minmax(i / terrainPrecision, val);
-
 				(*grassPath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i) / terrainPrecision), clippperPrecision * (val));
 
 			}
 			for (int i = (worldxChunks * 10 * terrainPrecision); i >= 0; i--)
 			{
 				//std::cout << "pt " << i << "\n";
-				float val = SimplexNoise::noise(i * multiplier / terrainPrecision) * 20 + worldyChunks * 10 / 2;
-				val += SimplexNoise::noise(i * multiplier / terrainPrecision) * 2 + 7;
-				val += .3f;
+				float val = TerrainGeneration::getGrassLevel(static_cast<float>(i) / terrainPrecision);
 				minmax(i / terrainPrecision, val);
-
 				(*grassPath)[0] << ClipperLib::IntPoint(clippperPrecision * (static_cast<float>(i) / terrainPrecision), clippperPrecision * (val));
 
 			}
@@ -524,7 +633,19 @@ public:
 				}
 
 			}
+			//PLAYER PHYSICS
+			for (auto const& pr : players)
+			{
 
+				Player* thisplayer = pr.second;
+				float currangle = -thisplayer->physBody->GetAngle();//0 is desired angle
+				currangle = std::fmod(currangle, M_PI*2);
+				if (currangle > M_PI)currangle -= 2 * M_PI;
+				currangle *= std::abs(currangle) * 12;
+				currangle -= thisplayer->physBody->GetAngularVelocity();
+				thisplayer->physBody->ApplyTorque(currangle,true);
+
+			}
 			//PLAYER INFO UPDATE
 
 
@@ -532,7 +653,7 @@ public:
 			{
 
 				Player* thisplayer = pr.second;
-				std::cout << "xy:"<<thisplayer->x<<","<< thisplayer->y <<"\n";
+				//std::cout << "xy:"<<thisplayer->x<<","<< thisplayer->y <<"\n";
 				ListSerializer ls;
 				//PLAYER PLAYER UPDATE
 
@@ -548,11 +669,11 @@ public:
 					aabb.lowerBound = xy1;
 					aabb.upperBound = xy2;
 					phys_world.QueryAABB(&cb, aabb);
-					
-					for (b2Body* bod: cb.fvp) {
 
-						gameObjectDat* dat=static_cast<gameObjectDat*>(bod->GetUserData());
-						if (dat->type==CHUNKTYPE) {
+					for (b2Body* bod : cb.fvp) {
+
+						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
+						if (dat->type == CHUNKTYPE) {
 							//dont do anything, updated later
 						}
 						else if (dat->type == PLAYERTYPE) {
@@ -566,7 +687,7 @@ public:
 					{
 						ClientChunkPiece n(NULL, 0, 0, 0);
 						ls.setClassAttributes(n.getAttributeTypes());
-					}					
+					}
 
 					const int cxchunk = (pr.second->x) / 10;
 					const int cychunk = (pr.second->y) / 10;
@@ -586,16 +707,13 @@ public:
 							{
 								b2ChainShape* cs = (b2ChainShape*)f->GetShape();
 
-								std::cout << "chainshape at " << xchunk << "," << ychunk <<"(" <<std::to_string( cs->GetChildCount() )<<") \n";
-								for (int i = 0; i < cs->GetChildCount();i++) {
+								for (int i = 0; i < cs->GetChildCount(); i++) {
 									b2EdgeShape n;
-									cs->GetChildEdge(&n,i);
-									std::cout<<n.m_vertex1.x<<","<< n.m_vertex1.y <<"\n";
+									cs->GetChildEdge(&n, i);
 								}
-		
+
 							}
 							if (updatedChunks.count(chunkhere) || (!(thisplayer->viewChunks.count(chunkhere)))) {
-								std::cout << "chunk:" << xchunk << "," << ychunk << "\n";
 								for (auto const& x : chunkhere->materialShapes)
 								{
 									Chunk::Material mat = x.first;
@@ -604,12 +722,7 @@ public:
 									for (ClipperLib::Path& pat : (*pats)) {
 										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk);
 										ls.addObjectAttributes(ccp.getAttributes());
-										//std::cout << "POINTS\n";
-										for (ClipperLib::IntPoint& pt : pat) {
-											//std::cout << pt.X<<","<<pt.Y <<"\n";
 
-
-										}
 									}
 								}
 							}
@@ -634,11 +747,11 @@ public:
 			//PHYSICS
 			//std::cout << phys_world.GetBodyCount() << "\n";
 
-			
 
-			phys_world.Step(1.0/60.0, 8, 3,3);
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000/60));
+			phys_world.Step(1.0 / 60.0, 8, 3, 3);
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
 		}
 	}
 	game_server() {
