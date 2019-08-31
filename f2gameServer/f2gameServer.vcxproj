@@ -158,14 +158,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Bullet.cpp" />
+    <ClCompile Include="Chunk.cpp" />
     <ClCompile Include="clipper.cpp" />
     <ClCompile Include="f2gameServer.cpp" />
+    <ClCompile Include="Item.cpp" />
+    <ClCompile Include="ListSerializer.cpp" />
+    <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Potion.cpp" />
+    <ClCompile Include="settings.cpp" />
     <ClCompile Include="SimplexNoise.cpp" />
+    <ClCompile Include="TerrainGeneration.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Bullet.h" />
+    <ClInclude Include="Chunk.h" />
     <ClInclude Include="clipper.hpp" />
+    <ClInclude Include="gameObjectData.h" />
+    <ClInclude Include="Item.h" />
     <ClInclude Include="ListSerializer.h" />
+    <ClInclude Include="Player.h" />
+    <ClInclude Include="Potion.h" />
+    <ClInclude Include="settings.h" />
     <ClInclude Include="SimplexNoise.h" />
+    <ClInclude Include="TerrainGeneration.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
