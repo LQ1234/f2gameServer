@@ -40,6 +40,7 @@
 #include "Item.h"
 #include "Player.h"
 #include "Potion.h"
+#include <algorithm>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -75,20 +76,6 @@ struct ws_event {
 	server::message_ptr msg;
 };
 
-
-
-
-
-
-//ENTITIES
-
-
-
-
-
-
-
-
 class viewportObjectCallback : public b2QueryCallback {
 public:
 	std::map<gameObjectType, std::set<b2Body*>> fvp;
@@ -114,6 +101,8 @@ public:
 		terrainBodyDef.type = b2_staticBody;
 		//chunk x,y goes from x,y to x+10,y+10
 		Chunk* chunk_array[worldyChunks][worldxChunks];
+
+
 		{
 
 			float terrainMins[worldxChunks];
@@ -215,8 +204,11 @@ public:
 
 		}
 
+		int timetillnextsec = 0;
+		int lastlooplengthms = 0;
 
 		while (1) {
+			auto t1 = std::chrono::high_resolution_clock::now();
 
 			//EVENTS
 			while (event_queue.size()) {
@@ -280,6 +272,7 @@ public:
 				}
 
 			}
+			/*
 			//PLAYER PHYSICS
 			for (auto const& pr : players)
 			{
@@ -293,14 +286,30 @@ public:
 				thisplayer->physBody->ApplyTorque(currangle, true);
 
 			}
+			*/
 			//PLAYER INFO UPDATE
+			/*
+			Send Order:
 
+			ClientThisPlayer
+			Player
+			Item
+			Bullet
+			Potion
+			ClientChunkPiece
+			*/
 
 			for (auto const& pr : players)
 			{
 
 				Player* thisplayer = pr.second;
 				ListSerializer ls;
+				//PLAYER SELF UPDATE
+				{
+					ls.setClassAttributes(ClientThisPlayer::getAttributeTypes());
+					ClientThisPlayer tp(thisplayer);
+					ls.addObjectAttributes(tp.getAttributes());
+				}
 
 				//PLAYER OBJECT UPDATE
 
@@ -419,9 +428,16 @@ public:
 
 
 
-			phys_world.Step(1.0 / 60.0, 8, 3, 3);
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 60));
+			phys_world.Step(std::min(70,lastlooplengthms)/1000.0, 8, 3, 3);//do not simulate over 70ms
+			auto t2 = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+			lastlooplengthms = std::max(static_cast< int>(targetMSPT), static_cast<int>(duration));
+			timetillnextsec -= lastlooplengthms;
+			if (timetillnextsec<0) {
+				timetillnextsec = 1000;
+				std::cout << "MSTP:"<< duration<<"/"<< targetMSPT <<"\n";
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(targetMSPT- duration));
 		}
 	}
 	game_server() {

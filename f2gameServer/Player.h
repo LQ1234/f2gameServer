@@ -32,6 +32,7 @@ public:
 };
 
 class ClientThisPlayer :Serializable {
+public:
 	Player* tplayer;
 	ClientThisPlayer(Player* tp);
 	void** getAttributes() ;

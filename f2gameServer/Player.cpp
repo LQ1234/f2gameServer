@@ -65,19 +65,26 @@ std::vector < ListSerializer::dataType > Player::getAttributeTypes() {
 	return(attrtypes);
 };
 
+
 ClientThisPlayer::ClientThisPlayer(Player* tp) :tplayer(tp) {
 }
 void** ClientThisPlayer::getAttributes() {
-	void** attrDat = new void* [2];
+	void** attrDat = new void* [2+ Item::itemtypes.size()];
 	tplayer->updatePosition();
 	attrDat[0] = &(tplayer->x);
 	attrDat[1] = &(tplayer->y);
+	for (size_t i = 0; i < Item::itemtypes.size(); i++)
+	{
+		attrDat[i+2] = &(tplayer->items[(Item::itemtypes[i])]);
+	}
 	//attrDat[3] = &health;
 	//attrDat[4] = &name;
 
 	return(attrDat);
 }
 std::vector < ListSerializer::dataType > ClientThisPlayer::getAttributeTypes() {
-	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::FLOAT, ListSerializer::FLOAT,ListSerializer::FLOAT, ListSerializer::FLOAT,ListSerializer::STRING };
+	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::FLOAT, ListSerializer::FLOAT};
+	std::vector <ListSerializer::dataType> atmints(Item::itemtypes.size(), ListSerializer::UINT);
+
 	return(attrtypes);
 };

@@ -40,8 +40,8 @@ Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<M
 		for (Material matType : materials)
 		{
 			if (matType == STONE) {
-				materialShapes[STONE] = new ClipperLib::Paths(1);
-				(*materialShapes[STONE])[0] << ClipperLib::IntPoint(clippperPrecision * (10 * x), clippperPrecision * (10 * y)) << ClipperLib::IntPoint(clippperPrecision * (10 * x + 10), clippperPrecision * (10 * y)) << ClipperLib::IntPoint(clippperPrecision * (10 * x + 10), clippperPrecision * (10 * y + 10)) << ClipperLib::IntPoint(clippperPrecision * (10 * x), clippperPrecision * (10 * y + 10));
+				materialShapes[STONE] = new ClipperLib::Paths(0);
+				//(*materialShapes[STONE])[0] << ClipperLib::IntPoint(clippperPrecision * (10 * x), clippperPrecision * (10 * y)) << ClipperLib::IntPoint(clippperPrecision * (10 * x + 10), clippperPrecision * (10 * y)) << ClipperLib::IntPoint(clippperPrecision * (10 * x + 10), clippperPrecision * (10 * y + 10)) << ClipperLib::IntPoint(clippperPrecision * (10 * x), clippperPrecision * (10 * y + 10));
 			}
 			else {
 				materialShapes[matType] = new ClipperLib::Paths(0);
