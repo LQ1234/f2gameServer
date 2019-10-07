@@ -23,7 +23,9 @@ public:
 	float rot = 0;
 	std::map<Item::ItemType, unsigned int> items;
 
-	bool buttons = new bool[4];
+	bool* movementkeyboard = new bool[4];
+	bool movementImpulseJumpLast = false;
+
 	Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl);
 	~Player();
 	void updatePosition();

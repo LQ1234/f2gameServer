@@ -2,6 +2,8 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <websocketpp/common/thread.hpp>
+#include <unordered_map> 
+
 /*
 #include <Box2D/Box2D.h>
 
@@ -78,10 +80,10 @@ struct ws_event {
 
 class viewportObjectCallback : public b2QueryCallback {
 public:
-	std::map<gameObjectType, std::set<b2Body*>> fvp;
+	std::unordered_map <gameObjectType, std::vector<b2Body*>> fvp;
 
 	bool ReportFixture(b2Fixture* fixture) {
-		fvp[static_cast<gameObjectDat*>(fixture->GetBody()->GetUserData())->type].insert(fixture->GetBody());
+		fvp[static_cast<gameObjectDat*>(fixture->GetBody()->GetUserData())->type].push_back(fixture->GetBody());
 		return(true);
 	}
 };
@@ -235,6 +237,12 @@ public:
 						std::cout << "ERROR:" << e.what() << std::endl;
 
 					}
+					std::string strpl = e.msg->get_payload();
+					players[e.hdl]->movementkeyboard[0] = strpl[0] == 1;
+					players[e.hdl]->movementkeyboard[1] = strpl[1] == 1;
+					players[e.hdl]->movementkeyboard[2] = strpl[2] == 1;
+					players[e.hdl]->movementkeyboard[3] = strpl[3] == 1;
+					std::cout<< players[e.hdl]->movementkeyboard[1]<<"\n";
 					/*
 					con_list::iterator it;
 
@@ -272,21 +280,36 @@ public:
 				}
 
 			}
-			/*
+			
 			//PLAYER PHYSICS
 			for (auto const& pr : players)
 			{
 
 				Player* thisplayer = pr.second;
+				float maxXVol = 6.5;
+				float xaccel = .4;
+
+				if (thisplayer->movementkeyboard[0]&&(!thisplayer->movementImpulseJumpLast) && thisplayer->physBody->GetLinearVelocity().y <8) {//W
+					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 8), thisplayer->physBody->GetWorldCenter(),true);
+				}
+				thisplayer->movementImpulseJumpLast = thisplayer->movementkeyboard[0];
+
+				if (thisplayer->movementkeyboard[1]&& thisplayer->physBody->GetLinearVelocity().x>-maxXVol) {//A
+					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(-xaccel, 0), thisplayer->physBody->GetWorldCenter(), true);
+				}
+				if (thisplayer->movementkeyboard[3] && thisplayer->physBody->GetLinearVelocity().x < maxXVol) {//D
+					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(xaccel, 0), thisplayer->physBody->GetWorldCenter(), true);
+				}
+				/*
 				float currangle = -thisplayer->physBody->GetAngle();//0 is desired angle
 				currangle = std::fmod(currangle, M_PI * 2);
 				if (currangle > M_PI)currangle -= 2 * M_PI;
 				currangle *= std::abs(currangle) * 12;
 				currangle -= thisplayer->physBody->GetAngularVelocity();
 				thisplayer->physBody->ApplyTorque(currangle, true);
-
+				*/
 			}
-			*/
+			
 			//PLAYER INFO UPDATE
 			/*
 			Send Order:

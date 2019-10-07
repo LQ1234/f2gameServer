@@ -13,9 +13,10 @@ void ListSerializer::setClassAttributes(std::vector<ListSerializer::dataType> ne
 }
 void ListSerializer::addObjectAttributes(void* a[]) {
 	int ci = 0;
-	for (auto i = currObjectAttributeTypes.begin(); i != currObjectAttributeTypes.end(); i++) {
+	ListSerializer::dataType* adarr = currObjectAttributeTypes.data();
+	for (int in = 0,  sz = currObjectAttributeTypes.size(); in < sz;in++) {
 		void* thisobj = a[ci];
-		switch (*i) {
+		switch (adarr[in]) {
 		case STRING: {
 			std::string asStr = *static_cast<std::string*>(thisobj);
 			size_t strSize = (asStr.size());

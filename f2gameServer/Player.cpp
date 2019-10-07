@@ -26,7 +26,7 @@ Player::Player(b2World& world, std::string nme, websocketpp::connection_hdl conh
 
 	b2FixtureDef fixtureDef;
 	fixtureDef.density = 1.0f;
-	fixtureDef.friction = 1.f;
+	fixtureDef.friction = .3f;
 	fixtureDef.shape = &dynamicBox;
 	fixtureDef.restitution = 0;
 

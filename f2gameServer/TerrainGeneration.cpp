@@ -41,7 +41,7 @@ std::vector<float> TerrainGeneration::getBiomePercentages(float x) {
 		//std::cout << biomePercentages[i] << "\n";
 	}
 
-	//return(biomePercentages);
+	return(biomePercentages);
 
 	std::vector<float> ret = { 1,0,0 };
 	return(ret);
