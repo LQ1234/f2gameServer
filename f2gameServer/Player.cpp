@@ -31,6 +31,18 @@ Player::Player(b2World& world, std::string nme, websocketpp::connection_hdl conh
 	fixtureDef.restitution = 0;
 
 	physBody->CreateFixture(&fixtureDef);
+
+	//Item collition
+	b2FixtureDef fixtureDef2;
+
+	b2CircleShape circleShape;
+	circleShape.m_radius = 2;
+	fixtureDef2.shape = &circleShape;
+	fixtureDef2.isSensor = true;
+	fixtureDef2.filter.maskBits = 1;
+	physBody->CreateFixture(&fixtureDef2);
+
+
 	gameObjectDat* x = new gameObjectDat(gameObjectType::PLAYERTYPE, this);
 	physBody->SetUserData(x);
 	wrd = &world;

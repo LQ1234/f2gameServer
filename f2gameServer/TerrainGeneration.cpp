@@ -55,7 +55,7 @@ float TerrainGeneration::getStoneLevelOfPlains(float x) {
 float TerrainGeneration::getDirtLevelOfPlains(float x) {
 	float val = getStoneLevelOfPlains(x);
 	val += SimplexNoise::noise(x * .02 + noiseRandomSeperation * 5) * .5 + 7;
-	val += SimplexNoise::noise(x + noiseRandomSeperation * 6) * .1;
+	//val += SimplexNoise::noise(x + noiseRandomSeperation * 6) * .1;
 
 	return(val);
 }

@@ -9,9 +9,13 @@
 #include "TerrainGeneration.h"
 #include "gameObjectData.h"
 #include "Item.h"
+#include <vector>
+
+
 
 class Player :Serializable {
 public:
+
 	b2Body* physBody;
 	b2World* wrd;
 	websocketpp::connection_hdl hdl;
@@ -23,9 +27,11 @@ public:
 	float rot = 0;
 	std::map<Item::ItemType, unsigned int> items;
 
-	bool* movementkeyboard = new bool[4];
+	bool movementkeyboard[4];
+	float mouseposition[2];
+	bool mousedown = false;
 	bool movementImpulseJumpLast = false;
-
+	
 	Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl);
 	~Player();
 	void updatePosition();

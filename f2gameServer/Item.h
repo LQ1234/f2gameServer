@@ -11,6 +11,8 @@ public:
 
 	float x = 0;
 	float y = 0;
+	float rot = 0;
+
 	enum ItemType :unsigned int {
 		SHOVEL,
 		AXE,

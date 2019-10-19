@@ -12,10 +12,10 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
-#include <utility> 
-#include <string> 
+#include <utility>
+#include <string>
 #include <stdlib.h>
-#include <time.h> 
+#include <time.h>
 #include <chrono>
 #include <thread>
 #include <algorithm>
@@ -33,6 +33,7 @@
 
 
 
+#include "Block.h"
 
 #include "settings.h"
 #include "TerrainGeneration.h"
@@ -42,6 +43,7 @@
 #include "Item.h"
 #include "Player.h"
 #include "Potion.h"
+
 #include <algorithm>
 
 #define _USE_MATH_DEFINES
@@ -80,14 +82,49 @@ struct ws_event {
 
 class viewportObjectCallback : public b2QueryCallback {
 public:
-	std::unordered_map <gameObjectType, std::vector<b2Body*>> fvp;
+	std::vector<b2Body*> fvp[GAMEOBJECTTYPESCOUNT_PP];
 
 	bool ReportFixture(b2Fixture* fixture) {
-		fvp[static_cast<gameObjectDat*>(fixture->GetBody()->GetUserData())->type].push_back(fixture->GetBody());
+		fvp[static_cast<int>(static_cast<gameObjectDat*>(fixture->GetBody()->GetUserData())->type)].push_back(fixture->GetBody());
 		return(true);
 	}
 };
-//
+
+class PlayerItemCollision : public b2ContactListener
+{
+public:
+	std::vector<gameObjectDat*>* toDestroy;
+
+private:
+	void BeginContact(b2Contact* contact) {
+		b2Fixture* fixA = contact->GetFixtureA();
+		b2Fixture* fixB = contact->GetFixtureB();
+
+		bool isA = fixA->IsSensor();
+		bool isB = fixB->IsSensor();
+		if (isA ^ isB) {
+			Item* itm;
+			if (isA) {
+				gameObjectDat* dat = static_cast<gameObjectDat*>(fixB->GetBody()->GetUserData());
+				if (dat->type != gameObjectType::ITEMTYPE)return;
+
+				itm = static_cast<Item*>(dat->obj);
+			}
+			else {
+				gameObjectDat* dat = static_cast<gameObjectDat*>(fixA->GetBody()->GetUserData());
+				if (dat->type != gameObjectType::ITEMTYPE)return;
+
+				itm = static_cast<Item*>(dat->obj);
+			}
+			toDestroy->push_back(new gameObjectDat(gameObjectType::ITEMTYPE,itm));
+		}
+	}
+
+	void EndContact(b2Contact* contact) {
+
+	}
+};
+
 
 class game_server {
 public:
@@ -96,15 +133,98 @@ public:
 	void game_loop() {
 
 
-		b2Vec2 phys_gravity(0.0f, -10.0f);
+		b2Vec2 phys_gravity(0.0f, -12.0f);
 		b2World phys_world(phys_gravity);
 
 		b2BodyDef terrainBodyDef;
 		terrainBodyDef.type = b2_staticBody;
 		//chunk x,y goes from x,y to x+10,y+10
 		Chunk* chunk_array[worldyChunks][worldxChunks];
+		auto addBlock = [this, &chunk_array](Block* newblock) {
+			updatedBlocks.insert(newblock);
+			int cx = newblock->x / 10, cy = newblock->y / 10;
+			if (0 <= cx && cx < worldxChunks && 0 <= cy && cy < worldyChunks) {
+				Chunk* tc = chunk_array[cy][cx];
+				tc->blocks.push_back(newblock);
 
+			}
+		};
+		auto detectBlock = [this, &chunk_array](int x, int y)->bool {
+			int cx = x / 10, cy = y / 10;
+			if (0 <= cx && cx < worldxChunks && 0 <= cy && cy < worldyChunks) {
+				Chunk* tc = chunk_array[cy][cx];
+				for (size_t i = 0; i < tc->blocks.size(); i++)
+				{
+					if (tc->blocks[i]->x == x && tc->blocks[i]->y == y) {
+						return(true);
+					}
+				}
+			}
+			return(false);
 
+		};
+		auto removeBlock = [this, &chunk_array](int x, int y) {
+			int cx = x / 10, cy = y / 10;
+			if (0 <= cx && cx < worldxChunks && 0 <= cy && cy < worldyChunks) {
+				Chunk* tc = chunk_array[cy][cx];
+				for (size_t i = 0; i < tc->blocks.size(); i++)
+				{
+					if (tc->blocks[i]->x == x && tc->blocks[i]->y == y) {
+						Block* tb = tc->blocks[i];
+						tb->thisBlockType = Block::NULLBLOCK;
+						updatedBlocks.insert(tb);
+						tc->blocks.erase(tc->blocks.begin()+i);
+						break;
+					}
+				}
+			}
+		};
+		auto removeMatterChunk = [this, &chunk_array](ClipperLib::Paths& sub, Chunk::Material mat, Chunk* thischk, bool updatePhys) {
+
+			ClipperLib::Clipper c;
+			c.AddPaths(*(thischk->materialShapes[mat]), ClipperLib::ptSubject, true);
+
+			c.AddPaths(sub, ClipperLib::ptClip, true);
+			ClipperLib::Paths* res = new ClipperLib::Paths();
+			c.Execute(ClipperLib::ctDifference, *res, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+			delete thischk->materialShapes[mat];
+			thischk->materialShapes[mat] = res;
+			updatedChunks.insert(thischk);
+			if (updatePhys)thischk->createBody();
+		};
+		auto removeMatter= [this, &chunk_array, removeMatterChunk](ClipperLib::Paths &toRemove,Chunk::Material matt,int xmin,int ymin,int xmax,int ymax,bool updatePhys) {
+			for (int chx = (int)(xmin / clippperPrecision / 10); chx <= (int)(xmax / clippperPrecision / 10); chx++) {
+				for (int chy = (int)(ymin / clippperPrecision / 10); chy <= (int)(ymax / clippperPrecision / 10); chy++) {
+					if (0 <= chx && chx < worldxChunks && 0 <= chy && chy < worldyChunks) {
+						Chunk* thiscthk = chunk_array[chy][chx];
+						removeMatterChunk(toRemove, matt, thiscthk, updatePhys);
+					}
+				}
+			}
+		};
+		auto addMatterChunk = [this, &chunk_array](ClipperLib::Paths& sub, Chunk::Material mat, Chunk* thischk, bool updatePhys) {
+
+			ClipperLib::Clipper c;
+			c.AddPaths(*(thischk->materialShapes[mat]), ClipperLib::ptSubject, true);
+
+			c.AddPaths(sub, ClipperLib::ptClip, true);
+			ClipperLib::Paths* res = new ClipperLib::Paths();
+			c.Execute(ClipperLib::ctUnion, *res, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+			delete thischk->materialShapes[mat];
+			thischk->materialShapes[mat] = res;
+			updatedChunks.insert(thischk);
+			if (updatePhys)thischk->createBody();
+		};
+		auto addMatter = [this, &chunk_array, addMatterChunk](ClipperLib::Paths& toAdd, Chunk::Material matt, int xmin, int ymin, int xmax, int ymax, bool updatePhys) {
+			for (int chx = (int)(xmin / clippperPrecision / 10); chx <= (int)(xmax / clippperPrecision / 10); chx++) {
+				for (int chy = (int)(ymin / clippperPrecision / 10); chy <= (int)(ymax / clippperPrecision / 10); chy++) {
+					if (0 <= chx && chx < worldxChunks && 0 <= chy && chy < worldyChunks) {
+						Chunk* thiscthk = chunk_array[chy][chx];
+						addMatterChunk(toAdd, matt, thiscthk, updatePhys);
+					}
+				}
+			}
+		};
 		{
 
 			float terrainMins[worldxChunks];
@@ -205,7 +325,12 @@ public:
 
 
 		}
+		std::vector<gameObjectDat*> toDestroy;
 
+		PlayerItemCollision playerItemCollision;
+		playerItemCollision.toDestroy = &toDestroy;
+		phys_world.SetContactListener(&playerItemCollision);
+		
 		int timetillnextsec = 0;
 		int lastlooplengthms = 0;
 
@@ -242,7 +367,24 @@ public:
 					players[e.hdl]->movementkeyboard[1] = strpl[1] == 1;
 					players[e.hdl]->movementkeyboard[2] = strpl[2] == 1;
 					players[e.hdl]->movementkeyboard[3] = strpl[3] == 1;
-					std::cout<< players[e.hdl]->movementkeyboard[1]<<"\n";
+					{
+						float f;
+						*((unsigned char*)(&f) + 0) = strpl[7];
+						*((unsigned char*)(&f) + 1) = strpl[6];
+						*((unsigned char*)(&f) + 2) = strpl[5];
+						*((unsigned char*)(&f) + 3) = strpl[4];
+						players[e.hdl]->mouseposition[0] = f;
+					}
+					{
+						float f;
+						*((unsigned char*)(&f) + 0) = strpl[7+4];
+						*((unsigned char*)(&f) + 1) = strpl[6+4];
+						*((unsigned char*)(&f) + 2) = strpl[5+4];
+						*((unsigned char*)(&f) + 3) = strpl[4+4];
+						players[e.hdl]->mouseposition[1] = f;
+					}
+					players[e.hdl]->mousedown = strpl[12] == 1;
+
 					/*
 					con_list::iterator it;
 
@@ -280,7 +422,7 @@ public:
 				}
 
 			}
-			
+
 			//PLAYER PHYSICS
 			for (auto const& pr : players)
 			{
@@ -289,27 +431,47 @@ public:
 				float maxXVol = 6.5;
 				float xaccel = .4;
 
-				if (thisplayer->movementkeyboard[0]&&(!thisplayer->movementImpulseJumpLast) && thisplayer->physBody->GetLinearVelocity().y <8) {//W
-					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 8), thisplayer->physBody->GetWorldCenter(),true);
+				if (thisplayer->movementkeyboard[0] && (!thisplayer->movementImpulseJumpLast) && thisplayer->physBody->GetLinearVelocity().y < 8) {//W
+					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 8), thisplayer->physBody->GetWorldCenter(), true);
 				}
 				thisplayer->movementImpulseJumpLast = thisplayer->movementkeyboard[0];
 
-				if (thisplayer->movementkeyboard[1]&& thisplayer->physBody->GetLinearVelocity().x>-maxXVol) {//A
+				if (thisplayer->movementkeyboard[1] && thisplayer->physBody->GetLinearVelocity().x > -maxXVol) {//A
 					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(-xaccel, 0), thisplayer->physBody->GetWorldCenter(), true);
 				}
 				if (thisplayer->movementkeyboard[3] && thisplayer->physBody->GetLinearVelocity().x < maxXVol) {//D
 					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(xaccel, 0), thisplayer->physBody->GetWorldCenter(), true);
 				}
-				/*
+
+
 				float currangle = -thisplayer->physBody->GetAngle();//0 is desired angle
 				currangle = std::fmod(currangle, M_PI * 2);
 				if (currangle > M_PI)currangle -= 2 * M_PI;
 				currangle *= std::abs(currangle) * 12;
 				currangle -= thisplayer->physBody->GetAngularVelocity();
 				thisplayer->physBody->ApplyTorque(currangle, true);
-				*/
+
+				if (thisplayer->mousedown) {
+					new Item(phys_world,Item::POTION,1, thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
+					/*
+					ClipperLib::Paths sub(1);
+					for (float i = 0; i < M_PI * 2;i+=.5) {
+						sub[0] << ClipperLib::IntPoint((cos(i) + thisplayer->mouseposition[0] )* clippperPrecision, (sin(i) + thisplayer->mouseposition[1] )* clippperPrecision );
+					}
+					int minx = (-1 + thisplayer->mouseposition[0]) * clippperPrecision,
+						miny = (-1 + thisplayer->mouseposition[1]) * clippperPrecision,
+						maxx = (1 + thisplayer->mouseposition[0]) * clippperPrecision,
+						maxy = (1 + thisplayer->mouseposition[1]) * clippperPrecision;
+					removeMatter(sub, Chunk::GRASS, minx,miny,maxx,maxy,false);
+					removeMatter(sub, Chunk::DIRT, minx, miny, maxx, maxy, false);
+					removeMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
+					addMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
+					*/
+				}
+				//if(thisplayer->mousedown&&!detectBlock(thisplayer->mouseposition[0], thisplayer->mouseposition[1]))addBlock(new Block(Block::STONEBLOCK,thisplayer->mouseposition[0], thisplayer->mouseposition[1],phys_world));
+
 			}
-			
+
 			//PLAYER INFO UPDATE
 			/*
 			Send Order:
@@ -320,6 +482,7 @@ public:
 			Bullet
 			Potion
 			ClientChunkPiece
+			Block
 			*/
 
 			for (auto const& pr : players)
@@ -349,7 +512,7 @@ public:
 
 					ls.setClassAttributes(Player::getAttributeTypes());
 
-					for (b2Body* bod : cb.fvp[gameObjectType::PLAYERTYPE]) {
+					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::PLAYERTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
@@ -359,7 +522,7 @@ public:
 
 					ls.setClassAttributes(Item::getAttributeTypes());
 
-					for (b2Body* bod : cb.fvp[gameObjectType::ITEMTYPE]) {
+					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::ITEMTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
@@ -368,7 +531,7 @@ public:
 					}
 					ls.setClassAttributes(Bullet::getAttributeTypes());
 
-					for (b2Body* bod : cb.fvp[gameObjectType::BULLETTYPE]) {
+					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::BULLETTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
@@ -377,13 +540,15 @@ public:
 					}
 					ls.setClassAttributes(Potion::getAttributeTypes());
 
-					for (b2Body* bod : cb.fvp[gameObjectType::POTIONTYPE]) {
+					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::POTIONTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
 						ls.addObjectAttributes((static_cast<Potion*>(dat->obj)->getAttributes()));
 
 					}
+
+
 				}
 
 				//PLAYER CHUNK UPDATE
@@ -394,7 +559,6 @@ public:
 
 					const int cxchunk = (pr.second->x) / 10;
 					const int cychunk = (pr.second->y) / 10;
-					std::set<Chunk*> newViewChunks;
 
 					for (int ychunk = cychunk - viewportYMinus; ychunk <= cychunk + viewportYPlus; ychunk++) {
 
@@ -405,7 +569,6 @@ public:
 								continue;
 							}
 							Chunk* chunkhere = chunk_array[ychunk][xchunk];
-							newViewChunks.insert(chunkhere);
 							for (b2Fixture* f = chunkhere->physBody->GetFixtureList(); f; f = f->GetNext())
 							{
 								b2ChainShape* cs = (b2ChainShape*)f->GetShape();
@@ -432,7 +595,43 @@ public:
 
 						}
 					}
+
+				}
+
+				{
+					{
+						ls.setClassAttributes(Block::getAttributeTypes());
+					}
+
+					const int cxchunk = (pr.second->x) / 10;
+					const int cychunk = (pr.second->y) / 10;
+					std::set<Chunk*> newViewChunks;
+
+					for (int ychunk = cychunk - viewportYMinus; ychunk <= cychunk + viewportYPlus; ychunk++) {
+
+
+						for (int xchunk = cxchunk - viewportX; xchunk <= cxchunk + viewportX; xchunk++) {
+
+							if (xchunk < 0 || ychunk < 0 || xchunk >= worldxChunks || ychunk >= worldyChunks) {
+								continue;
+							}
+							Chunk* chunkhere = chunk_array[ychunk][xchunk];
+							newViewChunks.insert(chunkhere);
+							if (updatedChunks.count(chunkhere) || (!(thisplayer->viewChunks.count(chunkhere)))) {
+								for (size_t i = 0; i < chunkhere->blocks.size(); i++)
+								{
+									ls.addObjectAttributes(chunkhere->blocks[i]->getAttributes());
+								}
+							}
+
+						}
+					}
 					thisplayer->viewChunks = newViewChunks;
+					for (Block* block : updatedBlocks)
+					{
+						if(thisplayer->x-viewportX*10 <block->x&& block->x < thisplayer->x + viewportX*10&&
+							thisplayer->y - viewportYMinus * 10 < block->y && block->y < thisplayer->y + viewportYPlus * 10)ls.addObjectAttributes(block->getAttributes());
+					}
 
 				}
 
@@ -446,21 +645,44 @@ public:
 				}
 			}
 			updatedChunks.clear();
+
+			for (auto it = updatedBlocks.begin(); it != updatedBlocks.end(); ) {
+
+				if ((*it)->thisBlockType== Block::NULLBLOCK) {
+					delete (*it);
+					it = updatedBlocks.erase(it);
+				}
+				else {
+					++it;
+				}
+			}
+			updatedBlocks.clear();
+
 			//PHYSICS
 			//std::cout << phys_world.GetBodyCount() << "\n";
+			{
 
+				toDestroy.clear();
 
+				phys_world.Step(std::min(70, lastlooplengthms) / 1000.0, 8, 3, 3);//do not simulate over 70ms
+				for (size_t i = 0; i < toDestroy.size(); i++)
+				{
+					//std::cout << static_cast<Item*>(toDestroy[i])->y << "\n";
+					if(toDestroy[i]->type==gameObjectType::ITEMTYPE)
+					delete (static_cast<Item*>(toDestroy[i]->obj));
 
-			phys_world.Step(std::min(70,lastlooplengthms)/1000.0, 8, 3, 3);//do not simulate over 70ms
+					delete toDestroy[i];
+				}
+			}
 			auto t2 = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-			lastlooplengthms = std::max(static_cast< int>(targetMSPT), static_cast<int>(duration));
+			lastlooplengthms = std::max(static_cast<int>(targetMSPT), static_cast<int>(duration));
 			timetillnextsec -= lastlooplengthms;
-			if (timetillnextsec<0) {
+			if (timetillnextsec < 0) {
 				timetillnextsec = 1000;
-				std::cout << "MSTP:"<< duration<<"/"<< targetMSPT <<"\n";
+				std::cout << "MSTP:" << duration << "/" << targetMSPT << "\n";
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(targetMSPT- duration));
+			std::this_thread::sleep_for(std::chrono::milliseconds(targetMSPT - duration));
 		}
 	}
 	game_server() {
@@ -516,6 +738,8 @@ private:
 	player_map players;
 	std::queue<ws_event> event_queue;
 	std::set<Chunk*> updatedChunks;
+	std::set <Block*> updatedBlocks;
+
 	mutex event_queue_lock;
 };
 

@@ -26,8 +26,11 @@ Potion::Potion(b2World& world, PotionType pt, float xx, float yy, float dir, flo
 	fixtureDef.friction = 1.f;
 	fixtureDef.shape = &circleShape;
 	fixtureDef.restitution = 0;
-
+	
 	physBody->CreateFixture(&fixtureDef);
+
+
+	
 	gameObjectDat* x = new gameObjectDat(gameObjectType::POTIONTYPE, this);
 	physBody->SetUserData(x);
 	wrd = &world;

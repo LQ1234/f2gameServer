@@ -6,6 +6,7 @@
 
 #include "settings.h"
 #include "ListSerializer.h"
+#include "Block.h"
 
 class Chunk {
 public:
@@ -19,7 +20,7 @@ public:
 	b2Body* physBody;
 	std::map<Material, ClipperLib::Paths*> materialShapes;
 
-
+	std::vector<Block*> blocks;
 
 	Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<Material, ClipperLib::Paths*>& wholeMaterialShape, signed char locInfo);
 	void createBody();

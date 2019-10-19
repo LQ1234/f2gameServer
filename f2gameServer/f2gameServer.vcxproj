@@ -158,6 +158,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Block.cpp" />
     <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="Chunk.cpp" />
     <ClCompile Include="clipper.cpp" />
@@ -171,6 +172,7 @@
     <ClCompile Include="TerrainGeneration.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Block.h" />
     <ClInclude Include="Bullet.h" />
     <ClInclude Include="Chunk.h" />
     <ClInclude Include="clipper.hpp" />

@@ -13,20 +13,20 @@ Item::Item(b2World& world, ItemType it, unsigned int ct, float xx, float yy) :it
 	bodyDef.bullet = false;
 	bodyDef.position.Set(xx, yy);
 
-	bodyDef.fixedRotation = true;
+	bodyDef.fixedRotation = false;
 	bodyDef.gravityScale = .5;
 	physBody = world.CreateBody(&bodyDef);
 
 
-	b2CircleShape circleShape;
-	circleShape.m_p.Set(0, 0);
-	circleShape.m_radius = objecthitboxinfo::item;
+	b2PolygonShape dynamicBox;
+	dynamicBox.SetAsBox(objecthitboxinfo::item.x / 2, objecthitboxinfo::item.y / 2);
 
 	b2FixtureDef fixtureDef;
 	fixtureDef.density = 1.0f;
 	fixtureDef.friction = 1.f;
-	fixtureDef.shape = &circleShape;
+	fixtureDef.shape = &dynamicBox;
 	fixtureDef.restitution = 0;
+	fixtureDef.filter.categoryBits = 1;
 
 	physBody->CreateFixture(&fixtureDef);
 	gameObjectDat* x = new gameObjectDat(gameObjectType::ITEMTYPE, this);
@@ -35,29 +35,36 @@ Item::Item(b2World& world, ItemType it, unsigned int ct, float xx, float yy) :it
 
 }
 Item::~Item() {
+	std::cout << "deleting" << "\n";
+
 	delete physBody->GetUserData();
 	physBody->SetUserData(NULL);
 
 	wrd->DestroyBody(physBody);
+
+
 	physBody = NULL;
 }
 void Item::updatePosition() {
 	b2Vec2 ps = physBody->GetPosition();
 	x = ps.x;
 	y = ps.y;
+	rot = physBody->GetAngle();
+
 }
 void** Item::getAttributes() {
-	void** attrDat = new void* [4];
+	void** attrDat = new void* [5];
 	updatePosition();
 	attrDat[0] = &x;
 	attrDat[1] = &y;
-	attrDat[2] = &itemtype;
-	attrDat[3] = &count;
+	attrDat[2] = &rot;
+	attrDat[3] = &itemtype;
+	attrDat[4] = &count;
 
 	return(attrDat);
 }
 std::vector < ListSerializer::dataType > Item::getAttributeTypes() {
-	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::FLOAT, ListSerializer::FLOAT,ListSerializer::UINT, ListSerializer::UINT };
+	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::FLOAT, ListSerializer::FLOAT, ListSerializer::FLOAT,ListSerializer::UINT, ListSerializer::UINT };
 	return(attrtypes);
 };
 

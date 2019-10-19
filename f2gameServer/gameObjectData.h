@@ -1,14 +1,12 @@
 #pragma once
 #include <vector> 
+#define GAMEOBJECTTYPES_PP(f) f CHUNKTYPE, f PLAYERTYPE, f ITEMTYPE, f BULLETTYPE, f POTIONTYPE, f BLOCKTYPE
+#define GAMEOBJECTTYPESCOUNT_PP 6
 
 enum class gameObjectType {
-	CHUNKTYPE,
-	PLAYERTYPE,
-	ITEMTYPE,
-	BULLETTYPE,
-	POTIONTYPE
+	GAMEOBJECTTYPES_PP()
 };
-const std::vector < gameObjectType > gameObjectTypes = { gameObjectType::CHUNKTYPE ,gameObjectType::PLAYERTYPE ,gameObjectType::ITEMTYPE ,gameObjectType::BULLETTYPE ,gameObjectType::POTIONTYPE };
+const std::vector < gameObjectType > gameObjectTypes = { GAMEOBJECTTYPES_PP(gameObjectType::) };
 
 struct gameObjectDat {
 	gameObjectType type;

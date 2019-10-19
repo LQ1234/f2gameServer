@@ -8,10 +8,10 @@
 
 #include "gameObjectData.h"
 
+#include <stdlib.h> 
 
 
-
-Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<Material, ClipperLib::Paths*>& wholeMaterialShape, signed char locInfo) : chunkx(x), chunky(y) {
+Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<Material, ClipperLib::Paths*>& wholeMaterialShape, signed char locInfo) :blocks(), chunkx(x), chunky(y) {
 	if (locInfo == 0) {
 
 		ClipperLib::Paths toclip(1);
@@ -55,6 +55,11 @@ Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<M
 	physBody = world.CreateBody(terrainBodyDef);
 	physBody->SetUserData(new gameObjectDat(gameObjectType::CHUNKTYPE, this));
 	createBody();
+	for (size_t i = 0; i < 10; i++)
+	{
+		blocks.push_back(new Block(static_cast<Block::BlockType>(rand() % 8+1) , 10 * x+ rand() % 10, 10 * y + rand() % 10, world));
+
+	}
 	/*
 	if (chunkInfo==-1) {
 	}
