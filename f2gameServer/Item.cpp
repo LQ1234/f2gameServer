@@ -4,11 +4,14 @@
 #include "gameObjectData.h"
 #include "Item.h"
 
+#include "Player.h"
 
 
-Item::Item(b2World& world, ItemType it, unsigned int ct, float xx, float yy) :itemtype(it), count(ct) {
+Item::Item(b2World& world, ItemType it, unsigned int ct, float xx, float yy) :itemtype(it), count(ct){
 
 	b2BodyDef bodyDef;
+	bodyDef.allowSleep = true;
+
 	bodyDef.type = b2_dynamicBody;
 	bodyDef.bullet = false;
 	bodyDef.position.Set(xx, yy);
@@ -35,7 +38,6 @@ Item::Item(b2World& world, ItemType it, unsigned int ct, float xx, float yy) :it
 
 }
 Item::~Item() {
-	std::cout << "deleting" << "\n";
 
 	delete physBody->GetUserData();
 	physBody->SetUserData(NULL);

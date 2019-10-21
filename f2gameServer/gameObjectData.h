@@ -14,5 +14,13 @@ struct gameObjectDat {
 	gameObjectDat(gameObjectType t, void* o) : type(t), obj(o)
 	{
 	};
-
+	bool operator > (gameObjectDat const& othr) {
+		return(obj>othr.obj);
+	}
+	bool operator < (gameObjectDat const& othr) {
+		return(obj < othr.obj);
+	}
+	bool operator == (gameObjectDat const& othr) {
+		return(obj == othr.obj);
+	}
 };

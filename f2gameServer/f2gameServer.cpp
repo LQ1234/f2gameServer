@@ -90,10 +90,14 @@ public:
 	}
 };
 
+auto toDestroyComparator = [](gameObjectDat* a, gameObjectDat* b)->bool {
+	return (*a) < (*b);
+};
+
 class PlayerItemCollision : public b2ContactListener
 {
 public:
-	std::vector<gameObjectDat*>* toDestroy;
+	std::set<gameObjectDat*, decltype(toDestroyComparator)>* toDestroy;
 
 private:
 	void BeginContact(b2Contact* contact) {
@@ -102,22 +106,23 @@ private:
 
 		bool isA = fixA->IsSensor();
 		bool isB = fixB->IsSensor();
-		if (isA ^ isB) {
-			Item* itm;
-			if (isA) {
-				gameObjectDat* dat = static_cast<gameObjectDat*>(fixB->GetBody()->GetUserData());
-				if (dat->type != gameObjectType::ITEMTYPE)return;
+		gameObjectDat* datA = static_cast<gameObjectDat*>(fixA->GetBody()->GetUserData());
+		gameObjectDat* datB = static_cast<gameObjectDat*>(fixB->GetBody()->GetUserData());
+		Item* itm;
+		Player* plyr;
 
-				itm = static_cast<Item*>(dat->obj);
-			}
-			else {
-				gameObjectDat* dat = static_cast<gameObjectDat*>(fixA->GetBody()->GetUserData());
-				if (dat->type != gameObjectType::ITEMTYPE)return;
-
-				itm = static_cast<Item*>(dat->obj);
-			}
-			toDestroy->push_back(new gameObjectDat(gameObjectType::ITEMTYPE,itm));
+		if (datA->type== gameObjectType::ITEMTYPE&& datB->type == gameObjectType::PLAYERTYPE) {
+			itm = static_cast<Item*>(datA->obj);
+			plyr = static_cast<Player*>(datB->obj);
 		}
+		else if (datB->type == gameObjectType::ITEMTYPE && datA->type == gameObjectType::PLAYERTYPE) {
+			itm = static_cast<Item*>(datB->obj);
+			plyr = static_cast<Player*>(datA->obj);
+			return;//one collision only
+		}
+		else return;
+		plyr->items[itm->itemtype] += itm->count;
+		toDestroy->insert(new gameObjectDat(gameObjectType::ITEMTYPE,itm));
 	}
 
 	void EndContact(b2Contact* contact) {
@@ -225,6 +230,32 @@ public:
 				}
 			}
 		};
+		auto queryMatterChunk = [this, &chunk_array](ClipperLib::Paths& sub, Chunk::Material mat, Chunk* thischk) -> double {
+
+			ClipperLib::Clipper c;
+			c.AddPaths(*(thischk->materialShapes[mat]), ClipperLib::ptSubject, true);
+
+			c.AddPaths(sub, ClipperLib::ptClip, true);
+			ClipperLib::Paths res;
+			c.Execute(ClipperLib::ctIntersection,res, ClipperLib::pftNonZero, ClipperLib::pftNonZero);
+
+			double t = 0;
+			for (int i = 0; i < res.size(); i++)
+				t += ClipperLib::Area(res[i]);
+			return t;
+		};
+		auto queryMatter = [this, &chunk_array, queryMatterChunk](ClipperLib::Paths& toAdd, Chunk::Material matt, int xmin, int ymin, int xmax, int ymax)-> double {
+			double total = 0;
+			for (int chx = (int)(xmin / clippperPrecision / 10); chx <= (int)(xmax / clippperPrecision / 10); chx++) {
+				for (int chy = (int)(ymin / clippperPrecision / 10); chy <= (int)(ymax / clippperPrecision / 10); chy++) {
+					if (0 <= chx && chx < worldxChunks && 0 <= chy && chy < worldyChunks) {
+						Chunk* thiscthk = chunk_array[chy][chx];
+						total+=queryMatterChunk(toAdd, matt, thiscthk);
+					}
+				}
+			}
+			return(total);
+		};
 		{
 
 			float terrainMins[worldxChunks];
@@ -325,7 +356,10 @@ public:
 
 
 		}
-		std::vector<gameObjectDat*> toDestroy;
+
+		
+
+		std::set<gameObjectDat*, decltype(toDestroyComparator)> toDestroy(toDestroyComparator);
 
 		PlayerItemCollision playerItemCollision;
 		playerItemCollision.toDestroy = &toDestroy;
@@ -452,8 +486,8 @@ public:
 				thisplayer->physBody->ApplyTorque(currangle, true);
 
 				if (thisplayer->mousedown) {
-					new Item(phys_world,Item::POTION,1, thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
-					/*
+					//new Item(phys_world,Item::DIRTPIECE,1, thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
+					
 					ClipperLib::Paths sub(1);
 					for (float i = 0; i < M_PI * 2;i+=.5) {
 						sub[0] << ClipperLib::IntPoint((cos(i) + thisplayer->mouseposition[0] )* clippperPrecision, (sin(i) + thisplayer->mouseposition[1] )* clippperPrecision );
@@ -462,11 +496,34 @@ public:
 						miny = (-1 + thisplayer->mouseposition[1]) * clippperPrecision,
 						maxx = (1 + thisplayer->mouseposition[0]) * clippperPrecision,
 						maxy = (1 + thisplayer->mouseposition[1]) * clippperPrecision;
+					for (Chunk::Material mat:Chunk::materials) {
+						double amt = queryMatter(sub, mat, minx, miny, maxx, maxy);
+
+						amt *= 20;//1000  peice per block
+						amt /= clippperPrecision * clippperPrecision;
+						int spawnitemcount = std::min(10, (int)(amt / 5));
+						for (size_t i = 0; i < spawnitemcount; i++)
+						{
+							float randDir = (rand() % static_cast<int>(M_PI * 1000)) / 500.0;
+							float randDist = (rand() % 1000) / 1000.0;
+							float randxc = cos(randDir) * randDist;
+							float randyc = sin(randDir) * randDist;
+							Item::ItemType itmtype;
+							switch (mat) {
+							case Chunk::GRASS: itmtype=Item::GRASSPIECE; break;
+							case Chunk::DIRT:itmtype = Item::DIRTPIECE; break;
+							case Chunk::STONE: itmtype = Item::STONEPIECE; break;
+
+							}
+							new Item(phys_world, itmtype, amt / spawnitemcount, thisplayer->mouseposition[0] + randxc, thisplayer->mouseposition[1] + randyc);
+						}
+					}
+
 					removeMatter(sub, Chunk::GRASS, minx,miny,maxx,maxy,false);
 					removeMatter(sub, Chunk::DIRT, minx, miny, maxx, maxy, false);
 					removeMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
-					addMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
-					*/
+					//addMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
+					
 				}
 				//if(thisplayer->mousedown&&!detectBlock(thisplayer->mouseposition[0], thisplayer->mouseposition[1]))addBlock(new Block(Block::STONEBLOCK,thisplayer->mouseposition[0], thisplayer->mouseposition[1],phys_world));
 
@@ -525,9 +582,14 @@ public:
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::ITEMTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
-
-						ls.addObjectAttributes((static_cast<Item*>(dat->obj)->getAttributes()));
-
+						Item* itm = static_cast<Item*>(dat->obj);
+						ls.addObjectAttributes(itm->getAttributes());
+						//Accelerate item here for efficiency
+						
+						b2Vec2 dis(thisplayer->x-itm->x, thisplayer->y-itm->y );
+						float len=dis.Normalize()/1.5;
+						
+						if(len>0)bod->ApplyForce(dis*std::min(1.5f,1/(len * len * len * len * len * len )), bod->GetWorldCenter(),true);
 					}
 					ls.setClassAttributes(Bullet::getAttributeTypes());
 
@@ -665,14 +727,13 @@ public:
 				toDestroy.clear();
 
 				phys_world.Step(std::min(70, lastlooplengthms) / 1000.0, 8, 3, 3);//do not simulate over 70ms
-				for (size_t i = 0; i < toDestroy.size(); i++)
-				{
-					//std::cout << static_cast<Item*>(toDestroy[i])->y << "\n";
-					if(toDestroy[i]->type==gameObjectType::ITEMTYPE)
-					delete (static_cast<Item*>(toDestroy[i]->obj));
-
-					delete toDestroy[i];
+				for (const gameObjectDat* td : toDestroy){
+					if (td->type == gameObjectType::ITEMTYPE) {
+						delete (static_cast<Item*>(td->obj));
+					}
+					delete td;
 				}
+
 			}
 			auto t2 = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();

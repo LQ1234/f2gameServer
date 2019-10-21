@@ -36,12 +36,15 @@ Player::Player(b2World& world, std::string nme, websocketpp::connection_hdl conh
 	b2FixtureDef fixtureDef2;
 
 	b2CircleShape circleShape;
-	circleShape.m_radius = 2;
+	circleShape.m_radius = .9;
 	fixtureDef2.shape = &circleShape;
 	fixtureDef2.isSensor = true;
 	fixtureDef2.filter.maskBits = 1;
 	physBody->CreateFixture(&fixtureDef2);
 
+	items[Item::GUN] = 1;
+	items[Item::PICKAXE] = 1;
+	items[Item::DIRTPIECE] = 127;
 
 	gameObjectDat* x = new gameObjectDat(gameObjectType::PLAYERTYPE, this);
 	physBody->SetUserData(x);
@@ -96,7 +99,8 @@ void** ClientThisPlayer::getAttributes() {
 }
 std::vector < ListSerializer::dataType > ClientThisPlayer::getAttributeTypes() {
 	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::FLOAT, ListSerializer::FLOAT};
+	attrtypes.reserve(attrtypes.size() + Item::itemtypes.size());
 	std::vector <ListSerializer::dataType> atmints(Item::itemtypes.size(), ListSerializer::UINT);
-
+	attrtypes.insert(attrtypes.end(), atmints.begin(), atmints.end());
 	return(attrtypes);
 };

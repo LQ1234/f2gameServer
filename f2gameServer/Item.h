@@ -1,14 +1,15 @@
 #pragma once
 #include <Box2D/Box2D.h>
 #include "ListSerializer.h"
+
 #include "settings.h"
 #include "gameObjectData.h"
+
 
 class Item :Serializable {
 public:
 	b2Body* physBody;
 	b2World* wrd;
-
 	float x = 0;
 	float y = 0;
 	float rot = 0;
