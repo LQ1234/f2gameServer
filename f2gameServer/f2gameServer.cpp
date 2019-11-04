@@ -397,28 +397,29 @@ public:
 
 					}
 					std::string strpl = e.msg->get_payload();
-					players[e.hdl]->movementkeyboard[0] = strpl[0] == 1;
-					players[e.hdl]->movementkeyboard[1] = strpl[1] == 1;
-					players[e.hdl]->movementkeyboard[2] = strpl[2] == 1;
-					players[e.hdl]->movementkeyboard[3] = strpl[3] == 1;
-					{
-						float f;
-						*((unsigned char*)(&f) + 0) = strpl[7];
-						*((unsigned char*)(&f) + 1) = strpl[6];
-						*((unsigned char*)(&f) + 2) = strpl[5];
-						*((unsigned char*)(&f) + 3) = strpl[4];
-						players[e.hdl]->mouseposition[0] = f;
+					if (strpl.size() == 13) {
+						players[e.hdl]->movementkeyboard[0] = strpl[0] == 1;
+						players[e.hdl]->movementkeyboard[1] = strpl[1] == 1;
+						players[e.hdl]->movementkeyboard[2] = strpl[2] == 1;
+						players[e.hdl]->movementkeyboard[3] = strpl[3] == 1;
+						{
+							float f;
+							*((unsigned char*)(&f) + 0) = strpl[7];
+							*((unsigned char*)(&f) + 1) = strpl[6];
+							*((unsigned char*)(&f) + 2) = strpl[5];
+							*((unsigned char*)(&f) + 3) = strpl[4];
+							players[e.hdl]->mouseposition[0] = f;
+						}
+						{
+							float f;
+							*((unsigned char*)(&f) + 0) = strpl[7 + 4];
+							*((unsigned char*)(&f) + 1) = strpl[6 + 4];
+							*((unsigned char*)(&f) + 2) = strpl[5 + 4];
+							*((unsigned char*)(&f) + 3) = strpl[4 + 4];
+							players[e.hdl]->mouseposition[1] = f;
+						}
+						players[e.hdl]->mousedown = strpl[12] == 1;
 					}
-					{
-						float f;
-						*((unsigned char*)(&f) + 0) = strpl[7+4];
-						*((unsigned char*)(&f) + 1) = strpl[6+4];
-						*((unsigned char*)(&f) + 2) = strpl[5+4];
-						*((unsigned char*)(&f) + 3) = strpl[4+4];
-						players[e.hdl]->mouseposition[1] = f;
-					}
-					players[e.hdl]->mousedown = strpl[12] == 1;
-
 					/*
 					con_list::iterator it;
 
