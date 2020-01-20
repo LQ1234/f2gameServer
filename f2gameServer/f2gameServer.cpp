@@ -94,39 +94,73 @@ auto toDestroyComparator = [](gameObjectDat* a, gameObjectDat* b)->bool {
 	return (*a) < (*b);
 };
 
-class PlayerItemCollision : public b2ContactListener
+class CollisionListener : public b2ContactListener
 {
 public:
 	std::set<gameObjectDat*, decltype(toDestroyComparator)>* toDestroy;
 
 private:
+	
 	void BeginContact(b2Contact* contact) {
+		Contact(contact,true);
+	}
+	void EndContact(b2Contact* contact) {
+		Contact(contact, false);
+	}
+	void Contact(b2Contact* contact,bool isBegin) {
 		b2Fixture* fixA = contact->GetFixtureA();
 		b2Fixture* fixB = contact->GetFixtureB();
 
 		bool isA = fixA->IsSensor();
 		bool isB = fixB->IsSensor();
+
 		gameObjectDat* datA = static_cast<gameObjectDat*>(fixA->GetBody()->GetUserData());
 		gameObjectDat* datB = static_cast<gameObjectDat*>(fixB->GetBody()->GetUserData());
-		Item* itm;
-		Player* plyr;
+		if (!datA) return;
+		if (!datB) return;
 
-		if (datA->type== gameObjectType::ITEMTYPE&& datB->type == gameObjectType::PLAYERTYPE) {
-			itm = static_cast<Item*>(datA->obj);
-			plyr = static_cast<Player*>(datB->obj);
-		}
-		else if (datB->type == gameObjectType::ITEMTYPE && datA->type == gameObjectType::PLAYERTYPE) {
-			itm = static_cast<Item*>(datB->obj);
-			plyr = static_cast<Player*>(datA->obj);
-			return;//one collision only
-		}
-		else return;
-		plyr->items[itm->itemtype] += itm->count;
-		toDestroy->insert(new gameObjectDat(gameObjectType::ITEMTYPE,itm));
+		if (PlayerItemHandler(datA, datB, fixA, fixB, isA, isB, isBegin))return;
+		if (PlayerItemHandler(datB, datA, fixB, fixA, isB, isA, isBegin))return;
+
+		if (PlayerEnviromentHandler(datA, datB, fixA, fixB, isA, isB, isBegin))return;
+		if (PlayerEnviromentHandler(datB, datA, fixB, fixA, isB, isA, isBegin))return;
 	}
+	bool PlayerItemHandler(gameObjectDat* datA, gameObjectDat* datB, b2Fixture* fixA , b2Fixture* fixB,bool isASensor, bool isBSensor, bool isBegin) {
+		if (datA->type != gameObjectType::ITEMTYPE)return false;
+		if (datB->type != gameObjectType::PLAYERTYPE)return false;
+		if (isASensor)return false;
+		if (!isBSensor)return false;
 
-	void EndContact(b2Contact* contact) {
 
+		Item* itm = static_cast<Item*>(datA->obj);
+		Player* plyr = static_cast<Player*>(datB->obj);
+
+		if (plyr->itemCollectionFixture != fixB) return false;
+		if (!isBegin)return false;
+		
+		plyr->items[itm->itemtype] += itm->count;
+		toDestroy->insert(new gameObjectDat(gameObjectType::ITEMTYPE, itm));
+
+		return false;
+	}
+	bool PlayerEnviromentHandler(gameObjectDat* datA, gameObjectDat* datB, b2Fixture* fixA, b2Fixture* fixB, bool isASensor, bool isBSensor, bool isBegin) {
+		if (datA->type != gameObjectType::PLAYERTYPE)return false;
+		if (datB->type == gameObjectType::ITEMTYPE)return false;
+
+		if (!isASensor)return false;
+
+		Player* plyr = static_cast<Player*>(datA->obj);
+		if (fixA == plyr->groundDetectFixture) {
+			plyr->onground += isBegin ? 1 : -1;
+		}
+		else if (fixA == plyr->wallJumpLeftFixture) {
+			plyr->wallJumpLeft += isBegin ? 1 : -1;
+		}
+		else if (fixA == plyr->wallJumpRightFixture) {
+			plyr->wallJumpRight += isBegin ? 1 : -1;
+		}
+		std::cout << "onground " << plyr->onground << " wallJumpLeft " << plyr->wallJumpLeft << " wallJumpRight " << plyr->wallJumpRight << "\n";
+		return false;
 	}
 };
 
@@ -361,10 +395,9 @@ public:
 
 		std::set<gameObjectDat*, decltype(toDestroyComparator)> toDestroy(toDestroyComparator);
 
-		PlayerItemCollision playerItemCollision;
-		playerItemCollision.toDestroy = &toDestroy;
-		phys_world.SetContactListener(&playerItemCollision);
-		
+		CollisionListener collisionListener;
+		collisionListener.toDestroy = &toDestroy;
+		phys_world.SetContactListener(&collisionListener);
 		int timetillnextsec = 0;
 		int lastlooplengthms = 0;
 
@@ -464,10 +497,23 @@ public:
 
 				Player* thisplayer = pr.second;
 				float maxXVol = 6.5;
-				float xaccel = .4;
+				float xaccel = .2;
 
-				if (thisplayer->movementkeyboard[0] && (!thisplayer->movementImpulseJumpLast) && thisplayer->physBody->GetLinearVelocity().y < 8) {//W
-					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 8), thisplayer->physBody->GetWorldCenter(), true);
+				if (thisplayer->movementkeyboard[0] && (!thisplayer->movementImpulseJumpLast)) {
+					if (thisplayer->onground > 0) {
+						if ( thisplayer->physBody->GetLinearVelocity().y < 8) {//W
+							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 1.3), thisplayer->physBody->GetWorldCenter(), true);
+						}
+					}
+					else {
+						if ( thisplayer->wallJumpLeft > 0) {
+							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(.9, .9), thisplayer->physBody->GetWorldCenter(), true);
+						}
+						if ( thisplayer->wallJumpRight > 0) {
+							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(-.9, .9), thisplayer->physBody->GetWorldCenter(), true);
+
+						}
+					}
 				}
 				thisplayer->movementImpulseJumpLast = thisplayer->movementkeyboard[0];
 
@@ -482,49 +528,58 @@ public:
 				float currangle = -thisplayer->physBody->GetAngle();//0 is desired angle
 				currangle = std::fmod(currangle, M_PI * 2);
 				if (currangle > M_PI)currangle -= 2 * M_PI;
-				currangle *= std::abs(currangle) * 12;
+				currangle *= std::abs(currangle) * 15;
 				currangle -= thisplayer->physBody->GetAngularVelocity();
 				thisplayer->physBody->ApplyTorque(currangle, true);
 
-				if (thisplayer->mousedown) {
-					//new Item(phys_world,Item::DIRTPIECE,1, thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
-					
-					ClipperLib::Paths sub(1);
-					for (float i = 0; i < M_PI * 2;i+=.5) {
-						sub[0] << ClipperLib::IntPoint((cos(i) + thisplayer->mouseposition[0] )* clippperPrecision, (sin(i) + thisplayer->mouseposition[1] )* clippperPrecision );
-					}
-					int minx = (-1 + thisplayer->mouseposition[0]) * clippperPrecision,
-						miny = (-1 + thisplayer->mouseposition[1]) * clippperPrecision,
-						maxx = (1 + thisplayer->mouseposition[0]) * clippperPrecision,
-						maxy = (1 + thisplayer->mouseposition[1]) * clippperPrecision;
-					for (Chunk::Material mat:Chunk::materials) {
-						double amt = queryMatter(sub, mat, minx, miny, maxx, maxy);
 
-						amt *= 20;//1000  peice per block
-						amt /= clippperPrecision * clippperPrecision;
-						int spawnitemcount = std::min(10, (int)(amt / 5));
-						for (size_t i = 0; i < spawnitemcount; i++)
-						{
-							float randDir = (rand() % static_cast<int>(M_PI * 1000)) / 500.0;
-							float randDist = (rand() % 1000) / 1000.0;
-							float randxc = cos(randDir) * randDist;
-							float randyc = sin(randDir) * randDist;
+				if (thisplayer->mousedown) {
+					if(detectBlock(thisplayer->mouseposition[0], thisplayer->mouseposition[1])){
+						removeBlock(thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
+					}
+					else {
+						//new Item(phys_world,Item::DIRTPIECE,1, thisplayer->mouseposition[0], thisplayer->mouseposition[1]);
+
+						ClipperLib::Paths sub(1);
+						for (float i = 0; i < M_PI * 2; i += .5) {
+							sub[0] << ClipperLib::IntPoint((cos(i) + thisplayer->mouseposition[0]) * clippperPrecision, (sin(i) + thisplayer->mouseposition[1]) * clippperPrecision);
+						}
+						int minx = (-1 + thisplayer->mouseposition[0]) * clippperPrecision,
+							miny = (-1 + thisplayer->mouseposition[1]) * clippperPrecision,
+							maxx = (1 + thisplayer->mouseposition[0]) * clippperPrecision,
+							maxy = (1 + thisplayer->mouseposition[1]) * clippperPrecision;
+						for (Chunk::Material mat : Chunk::materials) {
+
+							double amt = queryMatter(sub, mat, minx, miny, maxx, maxy);
+							amt *= 20;//1000  peice per block
+							amt /= clippperPrecision * clippperPrecision;
 							Item::ItemType itmtype;
 							switch (mat) {
-							case Chunk::GRASS: itmtype=Item::GRASSPIECE; break;
-							case Chunk::DIRT:itmtype = Item::DIRTPIECE; break;
-							case Chunk::STONE: itmtype = Item::STONEPIECE; break;
-
+								case Chunk::GRASS: itmtype = Item::GRASSPIECE; break;
+								case Chunk::DIRT:itmtype = Item::DIRTPIECE; break;
+								case Chunk::STONE: itmtype = Item::STONEPIECE; break;
 							}
-							new Item(phys_world, itmtype, amt / spawnitemcount, thisplayer->mouseposition[0] + randxc, thisplayer->mouseposition[1] + randyc);
-						}
-					}
 
-					removeMatter(sub, Chunk::GRASS, minx,miny,maxx,maxy,false);
-					removeMatter(sub, Chunk::DIRT, minx, miny, maxx, maxy, false);
-					removeMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
-					//addMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
-					
+							//thisplayer->items[itmtype] += amt;
+
+							
+							int spawnitemcount = std::min(10, (int)(amt / 5));
+							for (size_t i = 0; i < spawnitemcount; i++)
+							{
+								float randDir = (rand() % static_cast<int>(M_PI * 1000)) / 500.0;
+								float randDist = (rand() % 1000) / 1000.0;
+								float randxc = cos(randDir) * randDist;
+								float randyc = sin(randDir) * randDist;
+								new Item(phys_world, itmtype, amt / spawnitemcount, thisplayer->mouseposition[0] + randxc, thisplayer->mouseposition[1] + randyc);
+							}
+							
+						}
+
+						removeMatter(sub, Chunk::GRASS, minx, miny, maxx, maxy, false);
+						removeMatter(sub, Chunk::DIRT, minx, miny, maxx, maxy, false);
+						removeMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
+						//addMatter(sub, Chunk::STONE, minx, miny, maxx, maxy, true);
+					}
 				}
 				//if(thisplayer->mousedown&&!detectBlock(thisplayer->mouseposition[0], thisplayer->mouseposition[1]))addBlock(new Block(Block::STONEBLOCK,thisplayer->mouseposition[0], thisplayer->mouseposition[1],phys_world));
 

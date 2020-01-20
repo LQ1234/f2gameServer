@@ -16,7 +16,6 @@ static constexpr float noiseRandomSeperation = 10 * 100;
 
 
 struct objecthitboxinfo {
-	static const b2Vec2 player;
 	static const b2Vec2 item;
 	static const b2Vec2 bullet;
 	static const float potion;

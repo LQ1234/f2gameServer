@@ -27,7 +27,7 @@ class TwoDArrayWithNegativeIndex {
     for (var r in this.obj) {
       if(sr<=r&&r<=er){
         for (var c in this.obj[r]) {
-          if(sc<=c&&c<=ec)fn(this.obj[r][c], c, r);
+          if(sc<=c&&c<=ec)fn(this.obj[r][c], parseInt(c), parseInt(r));
         }
       }
     }

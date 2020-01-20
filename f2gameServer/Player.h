@@ -24,6 +24,8 @@ public:
 	std::set<Chunk*> viewChunks;
 	float x = 0;
 	float y = 0;
+	float xv = 0;
+	float yv = 0;
 	float rot = 0;
 	std::map<Item::ItemType, unsigned int> items;
 
@@ -31,7 +33,15 @@ public:
 	float mouseposition[2];
 	bool mousedown = false;
 	bool movementImpulseJumpLast = false;
-	
+	int onground = 0;
+	int wallJumpLeft = 0;
+	int wallJumpRight = 0;
+
+	b2Fixture* itemCollectionFixture;
+	b2Fixture* groundDetectFixture;
+	b2Fixture* wallJumpLeftFixture;
+	b2Fixture* wallJumpRightFixture;
+
 	Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl);
 	~Player();
 	void updatePosition();

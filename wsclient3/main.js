@@ -65,6 +65,12 @@ window.onload = function(inp) {
   for (var i = 0; i < globalInformation.worldsizechunks.y; i++) {
     worldchunkdata[i] = new Array(globalInformation.worldsizechunks.x);
   }
+
+  var worldskylightdata = new Array(globalInformation.worldsizechunks.y);
+  for (var i = 0; i < globalInformation.worldsizechunks.y; i++) {
+    worldskylightdata[i] = new Array(globalInformation.worldsizechunks.x);
+  }
+
   var worldblockdata = new TwoDArrayWithNegativeIndex();
   var movementkeyboard = [false, false, false, false];
   var mousepos = {
@@ -135,7 +141,29 @@ window.onload = function(inp) {
               basicrendercanvasctx.closePath();
               basicrendercanvasctx.fill();
             }
+            if(worldskylightdata[ychunk][xchunk]){
+              var thisdat=worldskylightdata[ychunk][xchunk];
+              basicrendercanvasctx.fillStyle = 'blue';
+
+              basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x, 10*ychunk- globalInformation.cam.y-.5,10,.5);
+
+              for(var i=0;i<10;i++){
+                for(var j=0;j<32;j++){
+                  if((thisdat[i]>>>(32-j))&1){
+                    basicrendercanvasctx.fillStyle = 'green';
+
+                    basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x+i+j/32, 10*ychunk- globalInformation.cam.y-.5,1/32,.5);
+                  }
+                }
+                basicrendercanvasctx.fillStyle = 'white';
+
+                basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x+i, 10*ychunk- globalInformation.cam.y-.5,1/60,.5);
+
+              }
+            }
+
           }
+
         }
       }
       basicrendercanvasctx.restore();
@@ -259,6 +287,7 @@ window.onload = function(inp) {
       }
       basicrendercanvasctx.translate(-x, -y);
     })
+
     for (var i = 0; i < globalInformation.renderlist.length; i++) {
       basicrendercanvasctx.save();
       globalInformation.renderlist[i](basicrendercanvasctx);
@@ -313,10 +342,115 @@ window.onload = function(inp) {
     }
   }
 
+  function fancyrender(){
+    var cxchunk = Math.floor(globalInformation.cam.x / 10);
+    var cychunk = Math.floor(globalInformation.cam.y / 10);
+    {
+      var skylighthere = new Uint32Array(10*(globalInformation.vpchunks.x*2+1));
+      for (var ychunk =  cychunk + globalInformation.vpchunks.y+1; ychunk <globalInformation.worldsizechunks.y; ychunk++)
+      {
+        for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
+          var thisskylight=worldskylightdata[ychunk][xchunk];
+          if(thisskylight){
+            for(var i=0;i<10;i++){
+              skylighthere[10*(xchunk-cxchunk+globalInformation.vpchunks.x)+i]|=thisskylight[i];
+            }
+          }
+        }
+      }
+      //                bytesPerPixel  blocksPerChunk                 chunksInViewportX  bytesPerBlock
+      let dat=new Uint8ClampedArray(4*            10*(globalInformation.vpchunks.x*2+1)*            32);
+      for(let i=0;i<10*(globalInformation.vpchunks.x*2+1);i++){
+        for(let j=0;j<32;j++){
+          dat[(i*32+j)*4]=(skylighthere[i]&(1<<(31-j)))===0?0:255;
+          dat[(i*32+j)*4+3]=255;
+        }
+      }
 
+      let canvas =document.getElementById("skylightdata"),
+          ctx = canvas.getContext('2d');
+      if(canvas.width!==32*(globalInformation.vpblocks.x)||canvas.height !== 1){
+        canvas.width = 32*(globalInformation.vpblocks.x);
+        canvas.height = 1;
+      }
+      var imgDat = ctx.createImageData(dat.length/4, canvas.height);
+      imgDat.data.set(dat);
+      ctx.putImageData(imgDat, 32*((cxchunk - globalInformation.vpchunks.x)*10-(globalInformation.vpblocks.x*-.5+globalInformation.cam.x)), 0);
+
+    }
+
+    resetLineBuffer();
+    function translateToGLCoordsX(x){
+      return((x - globalInformation.cam.x)/globalInformation.vpblocks.x+.5)
+    }
+    function translateToGLCoordsY(y){
+      return((y - globalInformation.cam.y)/globalInformation.vpblocks.y+.5)
+    }
+    for (var ychunk = cychunk - globalInformation.vpchunks.y; ychunk <= cychunk + globalInformation.vpchunks.y; ychunk++) {
+      for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
+        if (xchunk < 0 || ychunk < 0 || xchunk >= globalInformation.worldsizechunks.x || ychunk >= globalInformation.worldsizechunks.y) continue;
+
+        var thischunk = worldchunkdata[ychunk][xchunk]
+        if (thischunk) {
+          for (var i = 0; i < thischunk.length; i++) {
+            for (var j = 0; j < thischunk[i].asVec.length-2; j += 2) {
+              addLineToBuffer(translateToGLCoordsX(thischunk[i].asVec[j    ]),
+                              translateToGLCoordsY(thischunk[i].asVec[j + 1]),
+                              translateToGLCoordsX(thischunk[i].asVec[j + 2]),
+                              translateToGLCoordsY(thischunk[i].asVec[j + 3]));
+            }
+            addLineToBuffer(translateToGLCoordsX(thischunk[i].asVec[0]),
+                            translateToGLCoordsY(thischunk[i].asVec[1]),
+                            translateToGLCoordsX(thischunk[i].asVec[thischunk[i].asVec.length-2]),
+                            translateToGLCoordsY(thischunk[i].asVec[thischunk[i].asVec.length-1]));
+          }
+        }
+      }
+    }
+
+    //console.log(globalInformation.shadeTrianglesPointsIndex);
+
+
+    var k=0;
+    worldblockdata.forEachFrom(10*(cxchunk - globalInformation.vpchunks.x),
+                               10*(cychunk - globalInformation.vpchunks.y),
+                               10*(cxchunk + globalInformation.vpchunks.x+1),
+                               10*(cychunk + globalInformation.vpchunks.y+1),(o,x,y)=>{
+      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y),translateToGLCoordsX(x+1),translateToGLCoordsY(y));
+      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y+1),translateToGLCoordsX(x+1),translateToGLCoordsY(y+1));
+      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y),translateToGLCoordsX(x),translateToGLCoordsY(y+1));
+      addLineToBuffer(translateToGLCoordsX(x+1),translateToGLCoordsY(y),translateToGLCoordsX(x+1),translateToGLCoordsY(y+1));
+    });
+
+    for(var i=0;i<globalInformation.rendershadelist.length;i+=4){
+      addLineToBuffer(translateToGLCoordsX(globalInformation.rendershadelist[i]),translateToGLCoordsY(globalInformation.rendershadelist[i+1]),translateToGLCoordsX(globalInformation.rendershadelist[i+2]),translateToGLCoordsY(globalInformation.rendershadelist[i+3]));
+    }
+
+    resetLightBuffer();
+    for(var i=0;i<globalInformation.renderslightlist.length;i+=5){
+      addLightToBuffer(translateToGLCoordsX(globalInformation.renderslightlist[i]),translateToGLCoordsY(globalInformation.renderslightlist[i+1]),globalInformation.renderslightlist[i+2],globalInformation.renderslightlist[i+3],globalInformation.renderslightlist[i+4]);
+    }
+
+    for(var x=0;x<1;x+=.05){
+        addLightToBuffer(x,1,.5-Math.abs(x-.25),.5-Math.abs(x-.5),.5-Math.abs(x-.75));
+    }
+
+    addLightToBuffer(translateToGLCoordsX(globalInformation.thisplayer.x),translateToGLCoordsY(globalInformation.thisplayer.y),.5,.5,.5);
+
+    addLightToBuffer(globalInformation.debug.mp2.x,globalInformation.debug.mp2.y,1,1,1);
+
+    renderShadingCanvases();
+  }
   //camera 20 by 12
 
-
+  function binUpTo(percent){
+    if(percent<1/32)return(0>>>0);
+    return(((-1<<((32*(1-percent))>>>0)>>>0)));
+  }
+  function binFrom(percent){
+    if(percent>=1)return(0>>>0);
+    return((-1>>>(32*(percent))));
+  }
   var ws = new WebSocket("ws://localhost:9002");
 
   ws.onopen = function(event) {
@@ -336,6 +470,8 @@ window.onload = function(inp) {
           [
             ["x", deserializer.type.FLOAT],
             ["y", deserializer.type.FLOAT],
+            ["xv", deserializer.type.FLOAT],
+            ["yv", deserializer.type.FLOAT],
             ["rot", deserializer.type.FLOAT],
             ["health", deserializer.type.FLOAT],
             ["name", deserializer.type.STRING]
@@ -385,7 +521,8 @@ window.onload = function(inp) {
       }
 
       //ThisPLayer
-      globalInformation.thisplayer = fds.clientThisPlayers[0]; {
+      globalInformation.thisplayer = fds.clientThisPlayers[0];
+      {
         var preserve = .1;
         globalInformation.cam.x = globalInformation.cam.x * preserve + globalInformation.thisplayer.x * (1 - preserve);
         globalInformation.cam.y = globalInformation.cam.y * preserve + globalInformation.thisplayer.y * (1 - preserve);
@@ -394,7 +531,11 @@ window.onload = function(inp) {
 
       //Renderlist
       globalInformation.renderlist = [];
-      for (var i = 0; i < fds.players.length; i++) {
+      globalInformation.rendershadelist= [] ;
+      globalInformation.renderslightlist= [] ;
+
+
+      for (var i = 0; i < fds.players.length; i++) {/*
         globalInformation.renderlist.push(function() {
           var tp = fds.players[i];
           return (function(ctx) {
@@ -403,11 +544,72 @@ window.onload = function(inp) {
             ctx.fillStyle = 'black';
 
             ctx.rotate(tp.rot)
-            ctx.fillRect(-.4, -.4, .8, .8);
+            ctx.fillRect(-.4, 0, .8, 1.8);
           });
 
-        }());
+        }());*/
+        {
+          var plr= fds.players[i];
+
+          let len=.4*Math.sqrt(2),
+              x1=plr.x+len*Math.cos(plr.rot+Math.PI*1/4), y1=plr.y+len*Math.sin(plr.rot+Math.PI*1/4),
+              x2=plr.x+len*Math.cos(plr.rot+Math.PI*3/4), y2=plr.y+len*Math.sin(plr.rot+Math.PI*3/4),
+              x3=plr.x+len*Math.cos(plr.rot+Math.PI*5/4), y3=plr.y+len*Math.sin(plr.rot+Math.PI*5/4),
+              x4=plr.x+len*Math.cos(plr.rot+Math.PI*7/4), y4=plr.y+len*Math.sin(plr.rot+Math.PI*7/4);
+
+          globalInformation.rendershadelist.push(x1, y1, x2, y2);
+          globalInformation.rendershadelist.push(x2, y2, x3, y3);
+          globalInformation.rendershadelist.push(x3, y3, x4, y4);
+          globalInformation.rendershadelist.push(x4, y4, x1, y1);
+
+        }
+        {
+
+          globalInformation.renderlist.push(function() {
+            var plr= fds.players[i];
+
+            return (function(ctx) {
+              let renderpoints=computePARenderPoints({x:plr.x,xv:plr.xv,yv:plr.yv});
+
+              var ang=plr.rot;
+              var rotVec={x:Math.cos(ang)/3*2,y:Math.sin(ang)*.8};
+              function mult(a,b){
+                return({x:a.x*b.x-a.y*b.y,y:a.x*b.y+a.y*b.x})
+              }
+              function drawLine(x1,y1,x2,y2){
+                ctx.beginPath();
+                var a=mult({x:x1,y:y1},rotVec);
+                ctx.moveTo(a.x, a.y);
+                var b=mult({x:x2,y:y2},rotVec);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+              }
+              ctx.lineWidth = .05;
+              ctx.strokeStyle = "#FF0000";
+
+              ctx.translate(plr.x, plr.y);
+
+              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.hips.x,renderpoints.hips.y);
+              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.rightElbow.x,renderpoints.rightElbow.y);
+              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.leftElbow.x,renderpoints.leftElbow.y);
+              drawLine(renderpoints.rightKnee.x,renderpoints.rightKnee.y,renderpoints.hips.x,renderpoints.hips.y);
+              drawLine(renderpoints.leftKnee.x,renderpoints.leftKnee.y,renderpoints.hips.x,renderpoints.hips.y);
+              drawLine(renderpoints.rightKnee.x,renderpoints.rightKnee.y,renderpoints.rightFoot.x,renderpoints.rightFoot.y);
+              drawLine(renderpoints.leftKnee.x,renderpoints.leftKnee.y,renderpoints.leftFoot.x,renderpoints.leftFoot.y);
+              drawLine(renderpoints.rightElbow.x,renderpoints.rightElbow.y,renderpoints.rightHand.x,renderpoints.rightHand.y);
+              drawLine(renderpoints.leftElbow.x,renderpoints.leftElbow.y,renderpoints.leftHand.x,renderpoints.leftHand.y);
+              var hp=mult(renderpoints.head,rotVec)
+              ctx.beginPath();
+              ctx.arc(hp.x, hp.y, .26, 0, 2 * Math.PI);
+              ctx.stroke();
+
+              //var mx=mousepos.x/globalInformation.renderscale-globalInformation.vpblocks.x*.5,my=globalInformation.vpblocks.y*.5-mousepos.y/globalInformation.renderscale;
+              //var mp=computeMiddlePoint({x:mx,y:my},{x:0,y:0},2);
+            });
+          }());
+        }
       }
+
 
       for (var i = 0; i < fds.items.length; i++) {
         globalInformation.renderlist.push(function() {
@@ -422,13 +624,30 @@ window.onload = function(inp) {
           });
 
         }());
+        {
+          var itm= fds.items[i];
+
+          let len=Math.hypot((-.1 / 2), (-.5 / 2)),
+              dir=Math.atan((-.1 / 2)/(-.5 / 2)),
+              x1=itm.x+len*Math.cos(itm.rot+ dir          ), y1=itm.y+len*Math.sin(itm.rot+ dir          ),
+              x2=itm.x+len*Math.cos(itm.rot+ (Math.PI-dir)), y2=itm.y+len*Math.sin(itm.rot+ (Math.PI-dir)),
+              x3=itm.x+len*Math.cos(itm.rot+-(Math.PI-dir)), y3=itm.y+len*Math.sin(itm.rot+-(Math.PI-dir));
+              x4=itm.x+len*Math.cos(itm.rot+-dir          ), y4=itm.y+len*Math.sin(itm.rot+-dir          ),
+          globalInformation.rendershadelist.push(x1, y1, x2, y2);
+          globalInformation.rendershadelist.push(x2, y2, x3, y3);
+          globalInformation.rendershadelist.push(x3, y3, x4, y4);
+          globalInformation.rendershadelist.push(x4, y4, x1, y1);
+          //globalInformation.renderslightlist.push(itm.x,itm.y,1,.5,.5)
+        }
       }
+
+
       var blocklocsBlockcanvas = [];
       var blockdataBlockcanvas = [];
 
 
       for (var i = 0; i < fds.blocks.length; i++) {
-        console.log("blockinfo");
+        //console.log("blockinfo");
         var tp = fds.blocks[i];
 
         blocklocsBlockcanvas.push(tp.x, tp.y);
@@ -441,65 +660,10 @@ window.onload = function(inp) {
         }
       }
 
+
+
       setBlockCanvas(blocklocsBlockcanvas, blockdataBlockcanvas);
-      resetLineBuffer();
-      var cxchunk = Math.floor(globalInformation.cam.x / 10);
-      var cychunk = Math.floor(globalInformation.cam.y / 10);
 
-      for (var ychunk = cychunk - globalInformation.vpchunks.y; ychunk <= cychunk + globalInformation.vpchunks.y; ychunk++) {
-        for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
-          if (xchunk < 0 || ychunk < 0 || xchunk >= globalInformation.worldsizechunks.x || ychunk >= globalInformation.worldsizechunks.y) continue;
-          var thischunk = worldchunkdata[ychunk][xchunk]
-          if (thischunk) {
-            for (var i = 0; i < thischunk.length; i++) {
-              for (var j = 0; j < thischunk[i].asVec.length-2; j += 2) {
-                addLineToBuffer((thischunk[i].asVec[j    ] - globalInformation.cam.x)/globalInformation.vpblocks.x+.5,
-                                (thischunk[i].asVec[j + 1] - globalInformation.cam.y)/globalInformation.vpblocks.y+.5,
-                                (thischunk[i].asVec[j + 2] - globalInformation.cam.x)/globalInformation.vpblocks.x+.5,
-                                (thischunk[i].asVec[j + 3] - globalInformation.cam.y)/globalInformation.vpblocks.y+.5);
-              }
-              addLineToBuffer((thischunk[i].asVec[0] - globalInformation.cam.x)/globalInformation.vpblocks.x+.5,
-                              (thischunk[i].asVec[1] - globalInformation.cam.y)/globalInformation.vpblocks.y+.5,
-                              (thischunk[i].asVec[thischunk[i].asVec.length-2] - globalInformation.cam.x)/globalInformation.vpblocks.x+.5,
-                              (thischunk[i].asVec[thischunk[i].asVec.length-1] - globalInformation.cam.y)/globalInformation.vpblocks.y+.5);
-            }
-
-
-          }
-        }
-      }
-      //console.log(globalInformation.fullLinebuffer);
-      //DEBUG ONLY
-      {
-        document.getElementById("DEBUGCANVAS").width=globalInformation.vpblocks.x*globalInformation.renderscale;
-        document.getElementById("DEBUGCANVAS").height=globalInformation.vpblocks.y*globalInformation.renderscale;
-        var canvas=document.getElementById("DEBUGCANVAS");
-        var ctx=canvas.getContext('2d');
-        for(var y=0;y<globalInformation.linebuffergridy;y++){
-          for(var x=0;x<globalInformation.linebuffergridx;x++){
-            var thispiece=linebuffer[y][x];
-            for (var i = 0; i < thispiece.length; i++) {
-              thispiece[i]=Math.max(thispiece[i],0);
-              thispiece[i]=Math.min(thispiece[i],1);
-
-            }
-            for (var i = 0; i < thispiece.length; i+=4) {
-
-              ctx.beginPath();
-              ctx.moveTo((x+thispiece[i])*canvas.width/globalInformation.linebuffergridx,
-                         (globalInformation.linebuffergridy-y-thispiece[i+1])*canvas.height/globalInformation.linebuffergridy);
-              ctx.lineTo((x+thispiece[i+2])*canvas.width/globalInformation.linebuffergridx,
-                         (globalInformation.linebuffergridy-y-thispiece[i+3])*canvas.height/globalInformation.linebuffergridy);
-              ctx.stroke();
-            }
-
-          }
-        }
-      }
-
-      //console.log(linebuffer);
-
-      renderShadeCanvas();
 
       //Chunk
       var hasbeentouched = {};
@@ -507,18 +671,46 @@ window.onload = function(inp) {
         var dc = fds.clientChunkPieces[i];
         if (!hasbeentouched[dc.chunkx + "|" + dc.chunky]) { //quick fix
           worldchunkdata[dc.chunky][dc.chunkx] = [];
-          console.log("chunkinfo");
+          worldskylightdata[dc.chunky][dc.chunkx] = new Uint32Array(10);
+
+          //console.log("chunkinfo");
         }
         hasbeentouched[dc.chunkx + "|" + dc.chunky] = true;
         worldchunkdata[dc.chunky][dc.chunkx].push(dc);
+
+        {
+          var asVec=dc.asVec;
+          for(var j=0;j<asVec.length-2;j+=2){
+            var xstart=asVec[j+0]-dc.chunkx*10;
+            var xend=asVec[j+2]-dc.chunkx*10;
+            var xmin=Math.min(xstart,xend);
+            var xmax=Math.max(xstart,xend);
+            for(var x=Math.floor(xmin);x<Math.ceil(xmax);x++){
+              if(x==Math.floor(xmin)||x==Math.ceil(xmax)-1){
+
+                if(x==Math.floor(xmin)&&x==Math.ceil(xmax)-1){
+                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|(binUpTo(xmax-x)&binFrom(xmin-x));
+                }else if(x==Math.floor(xmin)){
+                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binFrom(xmin-x);
+                }else{
+                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binUpTo(xmax-x);
+                }
+              }else{
+                worldskylightdata[dc.chunky][dc.chunkx][x]=-1;//111...1
+              }
+            }
+          }
+
+
+        }
       }
 
 
     });
 
 
-  }
 
+  }
   window.addEventListener("keydown", function() {
     var x = event.which || event.keyCode;
     var succesful = false;
@@ -572,6 +764,14 @@ window.onload = function(inp) {
     mousepos.x = evt.clientX - rect.left;
     mousepos.y = evt.clientY - rect.top;
 
+    var mp2={};
+    rect = globalInformation.shadecanvas.getBoundingClientRect();
+    mp2.x = evt.clientX - rect.left;
+    mp2.y = evt.clientY - rect.top;
+    mp2.x/=rect.width;
+    mp2.y/=rect.height;
+    mp2.y=1-mp2.y;
+    globalInformation.debug.mp2=mp2;
     //mousepos.x=event;
   });
 
@@ -593,14 +793,24 @@ window.onload = function(inp) {
   function frame() {
     var t0 = performance.now();
     try {
-      //basicrender();
+      basicrender();
+      fancyrender();
       doIO();
+      globalInformation.currentframecount++;
+
     } catch (e) {
       console.error(e);
     }
     var t1 = performance.now();
     setTimeout(frame, (1000 / globalInformation.framespersec) - (t1 - t0));
+
+
   }
+  setInterval(()=>{
+    globalInformation.realframepersec=globalInformation.currentframecount;
+    console.log("FPS: "+globalInformation.realframepersec);
+    globalInformation.currentframecount=0;
+  },1000);
   webGlINIT();
 
   frame();
