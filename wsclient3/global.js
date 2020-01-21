@@ -33,6 +33,9 @@ var globalInformation = (()=>{
     blockType: CPPEnum("NULLBLOCK, STONEBLOCK, PLANKBLOCK, STONEBRICKBLOCK, LOGVBLOCK, LOGHBLOCK, GLASSBLOCK, TORCHBLOCK, LEAFBLOCK"),
 
     basicrendercanvas: null,
+    backgroundrendercanvas: null,
+    foregroundrendercanvas: null,
+
     blockdatacanvas: null,
     rendercanvas: null,
     shadecanvas:null,
@@ -47,7 +50,6 @@ var globalInformation = (()=>{
     shadeTrianglesWebglObjs:{},
     shadeTrianglesPointsVtxBfr:null,
     shadeMarkAsBg:-1234567890,//'magic number' to mark vertex as bg
-
 
     renderscale: 32,
     framespersec: 45,

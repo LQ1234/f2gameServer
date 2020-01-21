@@ -57,6 +57,8 @@ window.onload = function(inp) {
 
 
   globalInformation.basicrendercanvas = document.getElementById('basicrender');
+  globalInformation.backgroundrendercanvas = document.getElementById('backgroundrender');
+  globalInformation.foregroundrendercanvas = document.getElementById('foregroundrender');
 
   var basicrendercanvasctx = globalInformation.basicrendercanvas.getContext('2d');
 
@@ -64,6 +66,11 @@ window.onload = function(inp) {
   var worldchunkdata = new Array(globalInformation.worldsizechunks.y);
   for (var i = 0; i < globalInformation.worldsizechunks.y; i++) {
     worldchunkdata[i] = new Array(globalInformation.worldsizechunks.x);
+  }
+
+  var worldbackgroundchunkdata = new Array(globalInformation.worldsizechunks.y);
+  for (var i = 0; i < globalInformation.worldsizechunks.y; i++) {
+    worldbackgroundchunkdata[i] = new Array(globalInformation.worldsizechunks.x);
   }
 
   var worldskylightdata = new Array(globalInformation.worldsizechunks.y);
@@ -79,7 +86,131 @@ window.onload = function(inp) {
   };
   var mousedown = false;
   //every item in the worldchunkdata 2d array is a client chunk piece array
+  function rendermateriallayers(){
+    function setup(canvas){
+      if (canvas.width != globalInformation.vpblocks.x * globalInformation.renderscale || canvas.height != globalInformation.vpblocks.y * globalInformation.renderscale) {
+        canvas.width = globalInformation.vpblocks.x * globalInformation.renderscale;
+        canvas.height = globalInformation.vpblocks.y * globalInformation.renderscale;
+      }
+      var ctx=canvas.getContext('2d');;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.translate(globalInformation.vpblocks.x / 2 * globalInformation.renderscale, globalInformation.vpblocks.y / 2 * globalInformation.renderscale);
+      ctx.scale(globalInformation.renderscale, -globalInformation.renderscale);
+      return ctx;
+    }
 
+    var backgroundrendercanvasctx=setup(globalInformation.backgroundrendercanvas);
+
+    var foregroundrendercanvasctx=setup(globalInformation.foregroundrendercanvas);
+
+    {
+      backgroundrendercanvasctx.save();
+      foregroundrendercanvasctx.save();
+
+      var cxchunk = Math.floor(globalInformation.cam.x / 10);
+      var cychunk = Math.floor(globalInformation.cam.y / 10);
+
+      for (var ychunk = cychunk - globalInformation.vpchunks.y; ychunk <= cychunk + globalInformation.vpchunks.y; ychunk++) {
+        for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
+          if (xchunk < 0 || ychunk < 0 || xchunk >= globalInformation.worldsizechunks.x || ychunk >= globalInformation.worldsizechunks.y) continue;
+          {
+            let thischunk = worldbackgroundchunkdata[ychunk][xchunk]
+            if (thischunk) {
+              backgroundrendercanvasctx.globalCompositeOperation = 'source-over';
+
+              for (var i = 0; i < thischunk.length; i++) { //Draw filled in shapes
+                if (!thischunk[i].isWhole) continue;
+                if (thischunk[i].materialType == 0) {
+                  backgroundrendercanvasctx.fillStyle = "#00ff44";
+                } else if (thischunk[i].materialType == 1) {
+                  backgroundrendercanvasctx.fillStyle = "#804d0f";
+                } else if (thischunk[i].materialType == 2) {
+                  backgroundrendercanvasctx.fillStyle = "#696969";
+                }
+                backgroundrendercanvasctx.beginPath();
+                //console.log(thischunk[i]);
+
+                backgroundrendercanvasctx.moveTo(thischunk[i].asVec[0] - globalInformation.cam.x, thischunk[i].asVec[1] - globalInformation.cam.y);
+                for (var j = 0; j < thischunk[i].asVec.length; j += 2) {
+                  backgroundrendercanvasctx.lineTo(thischunk[i].asVec[j] - globalInformation.cam.x, thischunk[i].asVec[j + 1] - globalInformation.cam.y);
+                  //console.log(thischunk[i].asVec.length);
+                }
+                backgroundrendercanvasctx.closePath();
+                backgroundrendercanvasctx.fill();
+              }
+              backgroundrendercanvasctx.globalCompositeOperation = 'destination-out';
+
+              for (var i = 0; i < thischunk.length; i++) { //Erase holes
+                if (thischunk[i].isWhole) continue;
+                backgroundrendercanvasctx.fillStyle = "#ffffff";
+
+                backgroundrendercanvasctx.beginPath();
+                //console.log(thischunk[i]);
+
+                backgroundrendercanvasctx.moveTo(thischunk[i].asVec[0] - globalInformation.cam.x, thischunk[i].asVec[1] - globalInformation.cam.y);
+                for (var j = 0; j < thischunk[i].asVec.length; j += 2) {
+                  backgroundrendercanvasctx.lineTo(thischunk[i].asVec[j] - globalInformation.cam.x, thischunk[i].asVec[j + 1] - globalInformation.cam.y);
+                  //console.log(thischunk[i].asVec.length);
+                }
+                backgroundrendercanvasctx.closePath();
+                backgroundrendercanvasctx.fill();
+              }
+
+            }
+          }
+          {
+            let thischunk = worldchunkdata[ychunk][xchunk]
+            if (thischunk) {
+              foregroundrendercanvasctx.globalCompositeOperation = 'source-over';
+
+              for (var i = 0; i < thischunk.length; i++) { //Draw filled in shapes
+                if (!thischunk[i].isWhole) continue;
+                if (thischunk[i].materialType == 0) {
+                  foregroundrendercanvasctx.fillStyle = "#00ff44";
+                } else if (thischunk[i].materialType == 1) {
+                  foregroundrendercanvasctx.fillStyle = "#804d0f";
+                } else if (thischunk[i].materialType == 2) {
+                  foregroundrendercanvasctx.fillStyle = "#696969";
+                }
+                foregroundrendercanvasctx.beginPath();
+                //console.log(thischunk[i]);
+
+                foregroundrendercanvasctx.moveTo(thischunk[i].asVec[0] - globalInformation.cam.x, thischunk[i].asVec[1] - globalInformation.cam.y);
+                for (var j = 0; j < thischunk[i].asVec.length; j += 2) {
+                  foregroundrendercanvasctx.lineTo(thischunk[i].asVec[j] - globalInformation.cam.x, thischunk[i].asVec[j + 1] - globalInformation.cam.y);
+                  //console.log(thischunk[i].asVec.length);
+                }
+                foregroundrendercanvasctx.closePath();
+                foregroundrendercanvasctx.fill();
+
+              }
+              foregroundrendercanvasctx.globalCompositeOperation = 'destination-out';
+
+              for (var i = 0; i < thischunk.length; i++) { //Erase holes
+                if (thischunk[i].isWhole) continue;
+                foregroundrendercanvasctx.fillStyle = "#ffffff";
+
+                foregroundrendercanvasctx.beginPath();
+                //console.log(thischunk[i]);
+
+                foregroundrendercanvasctx.moveTo(thischunk[i].asVec[0] - globalInformation.cam.x, thischunk[i].asVec[1] - globalInformation.cam.y);
+                for (var j = 0; j < thischunk[i].asVec.length; j += 2) {
+                  foregroundrendercanvasctx.lineTo(thischunk[i].asVec[j] - globalInformation.cam.x, thischunk[i].asVec[j + 1] - globalInformation.cam.y);
+                  //console.log(thischunk[i].asVec.length);
+                }
+                foregroundrendercanvasctx.closePath();
+                foregroundrendercanvasctx.fill();
+              }
+
+            }
+          }
+        }
+      }
+      backgroundrendercanvasctx.restore();
+      foregroundrendercanvasctx.restore();
+    }
+  }
   function basicrender() {
 
     if (globalInformation.basicrendercanvas.width != globalInformation.vpblocks.x * globalInformation.renderscale || globalInformation.basicrendercanvas.height != globalInformation.vpblocks.y * globalInformation.renderscale) {
@@ -93,7 +224,8 @@ window.onload = function(inp) {
 
 
     basicrendercanvasctx.translate(globalInformation.vpblocks.x / 2 * globalInformation.renderscale, globalInformation.vpblocks.y / 2 * globalInformation.renderscale);
-    basicrendercanvasctx.scale(globalInformation.renderscale, -globalInformation.renderscale); {
+    basicrendercanvasctx.scale(globalInformation.renderscale, -globalInformation.renderscale);
+    {
       basicrendercanvasctx.save();
 
       var cxchunk = Math.floor(globalInformation.cam.x / 10);
@@ -140,7 +272,7 @@ window.onload = function(inp) {
               }
               basicrendercanvasctx.closePath();
               basicrendercanvasctx.fill();
-            }
+            }/*
             if(worldskylightdata[ychunk][xchunk]){
               var thisdat=worldskylightdata[ychunk][xchunk];
               basicrendercanvasctx.fillStyle = 'blue';
@@ -160,7 +292,7 @@ window.onload = function(inp) {
                 basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x+i, 10*ychunk- globalInformation.cam.y-.5,1/60,.5);
 
               }
-            }
+            }*/
 
           }
 
@@ -341,43 +473,46 @@ window.onload = function(inp) {
       }
     }
   }
-
-  function fancyrender(){
-    var cxchunk = Math.floor(globalInformation.cam.x / 10);
-    var cychunk = Math.floor(globalInformation.cam.y / 10);
+  function calculateSkylight(cxchunk,cychunk){
+    var skylighthere = new Uint32Array(10*(globalInformation.vpchunks.x*2+1));
+    for (var ychunk =  cychunk + globalInformation.vpchunks.y+1; ychunk <globalInformation.worldsizechunks.y; ychunk++)
     {
-      var skylighthere = new Uint32Array(10*(globalInformation.vpchunks.x*2+1));
-      for (var ychunk =  cychunk + globalInformation.vpchunks.y+1; ychunk <globalInformation.worldsizechunks.y; ychunk++)
-      {
-        for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
-          var thisskylight=worldskylightdata[ychunk][xchunk];
-          if(thisskylight){
-            for(var i=0;i<10;i++){
-              skylighthere[10*(xchunk-cxchunk+globalInformation.vpchunks.x)+i]|=thisskylight[i];
-            }
+      for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
+        var thisskylight=worldskylightdata[ychunk][xchunk];
+        if(thisskylight){
+          for(var i=0;i<10;i++){
+            skylighthere[10*(xchunk-cxchunk+globalInformation.vpchunks.x)+i]|=thisskylight[i];
           }
         }
       }
-      //                bytesPerPixel  blocksPerChunk                 chunksInViewportX  bytesPerBlock
-      let dat=new Uint8ClampedArray(4*            10*(globalInformation.vpchunks.x*2+1)*            32);
-      for(let i=0;i<10*(globalInformation.vpchunks.x*2+1);i++){
-        for(let j=0;j<32;j++){
-          dat[(i*32+j)*4]=(skylighthere[i]&(1<<(31-j)))===0?0:255;
-          dat[(i*32+j)*4+3]=255;
-        }
-      }
-
-      let canvas =document.getElementById("skylightdata"),
-          ctx = canvas.getContext('2d');
-      if(canvas.width!==32*(globalInformation.vpblocks.x)||canvas.height !== 1){
-        canvas.width = 32*(globalInformation.vpblocks.x);
-        canvas.height = 1;
-      }
-      var imgDat = ctx.createImageData(dat.length/4, canvas.height);
-      imgDat.data.set(dat);
-      ctx.putImageData(imgDat, 32*((cxchunk - globalInformation.vpchunks.x)*10-(globalInformation.vpblocks.x*-.5+globalInformation.cam.x)), 0);
-
     }
+    //                bytesPerPixel  blocksPerChunk                 chunksInViewportX  bytesPerBlock
+    let dat=new Uint8ClampedArray(4*            10*(globalInformation.vpchunks.x*2+1)*            32);
+    for(let i=0;i<10*(globalInformation.vpchunks.x*2+1);i++){
+      for(let j=0;j<32;j++){
+        dat[(i*32+j)*4]=(skylighthere[i]&(1<<(31-j)))===0?0:255;
+        dat[(i*32+j)*4+3]=255;
+      }
+    }
+
+    let canvas =document.getElementById("skylightdata"),
+        ctx = canvas.getContext('2d');
+    if(canvas.width!==32*(globalInformation.vpblocks.x)||canvas.height !== 1){
+      canvas.width = 32*(globalInformation.vpblocks.x);
+      canvas.height = 1;
+    }
+    var imgDat = ctx.createImageData(dat.length/4, canvas.height);
+    imgDat.data.set(dat);
+    ctx.putImageData(imgDat, 32*((cxchunk - globalInformation.vpchunks.x)*10-(globalInformation.vpblocks.x*-.5+globalInformation.cam.x)), 0);
+
+  }
+  function fancyrender(){
+    rendermateriallayers();
+
+    var cxchunk = Math.floor(globalInformation.cam.x / 10);
+    var cychunk = Math.floor(globalInformation.cam.y / 10);
+
+    calculateSkylight(cxchunk,cychunk);
 
     resetLineBuffer();
     function translateToGLCoordsX(x){
@@ -432,12 +567,18 @@ window.onload = function(inp) {
     }
 
     for(var x=0;x<1;x+=.05){
-        addLightToBuffer(x,1,.5-Math.abs(x-.25),.5-Math.abs(x-.5),.5-Math.abs(x-.75));
+        //addLightToBuffer(x,1,.5-Math.abs(x-.25),.5-Math.abs(x-.5),.5-Math.abs(x-.75));
     }
 
-    addLightToBuffer(translateToGLCoordsX(globalInformation.thisplayer.x),translateToGLCoordsY(globalInformation.thisplayer.y),.5,.5,.5);
+    //addLightToBuffer(translateToGLCoordsX(globalInformation.thisplayer.x),translateToGLCoordsY(globalInformation.thisplayer.y),.5,.5,.5);
 
-    addLightToBuffer(globalInformation.debug.mp2.x,globalInformation.debug.mp2.y,1,1,1);
+    //lightcolor*.5/(pow(1000/3.5,1.5)+.4)
+    {
+      const dist=100*globalInformation.vpblocks.x;
+      const intensity=1/(.5/(Math.pow(dist/3.5,1.5)+.4));
+      addLightToBuffer(.5,100,intensity*0,intensity*1,intensity*.267);//its not a hack if its how it works in real life
+    }
+    //addLightToBuffer(globalInformation.debug.mp2.x,globalInformation.debug.mp2.y,1,1,1);
 
     renderShadingCanvases();
   }
@@ -451,6 +592,7 @@ window.onload = function(inp) {
     if(percent>=1)return(0>>>0);
     return((-1>>>(32*(percent))));
   }
+
   var ws = new WebSocket("ws://localhost:9002");
 
   ws.onopen = function(event) {
@@ -499,7 +641,9 @@ window.onload = function(inp) {
             ["materialType", deserializer.type.BYTE],
             ["asVec", deserializer.type.XYPAIRS],
             ["chunkx", deserializer.type.UINT],
-            ["chunky", deserializer.type.UINT]
+            ["chunky", deserializer.type.UINT],
+            ["isBackground", deserializer.type.BYTE],
+
           ],
           [
             ["x", deserializer.type.INTR],
@@ -667,41 +811,47 @@ window.onload = function(inp) {
 
       //Chunk
       var hasbeentouched = {};
+      var hasbeentouchedbg = {};
+
       for (var i = 0; i < fds.clientChunkPieces.length; i++) {
         var dc = fds.clientChunkPieces[i];
-        if (!hasbeentouched[dc.chunkx + "|" + dc.chunky]) { //quick fix
-          worldchunkdata[dc.chunky][dc.chunkx] = [];
-          worldskylightdata[dc.chunky][dc.chunkx] = new Uint32Array(10);
+        if(dc.isBackground){
+          if (!hasbeentouchedbg[dc.chunkx + "|" + dc.chunky]) { //quick fix
+            worldbackgroundchunkdata[dc.chunky][dc.chunkx] = [];
+          }
+          hasbeentouchedbg[dc.chunkx + "|" + dc.chunky] = true;
+          worldbackgroundchunkdata[dc.chunky][dc.chunkx].push(dc);
+        }else{
+          if (!hasbeentouched[dc.chunkx + "|" + dc.chunky]) { //quick fix
+            worldchunkdata[dc.chunky][dc.chunkx] = [];
+            worldskylightdata[dc.chunky][dc.chunkx] = new Uint32Array(10);
+          }
+          hasbeentouched[dc.chunkx + "|" + dc.chunky] = true;
+          worldchunkdata[dc.chunky][dc.chunkx].push(dc);
 
-          //console.log("chunkinfo");
-        }
-        hasbeentouched[dc.chunkx + "|" + dc.chunky] = true;
-        worldchunkdata[dc.chunky][dc.chunkx].push(dc);
+          {
+            var asVec=dc.asVec;
+            for(var j=0;j<asVec.length-2;j+=2){
+              var xstart=asVec[j+0]-dc.chunkx*10;
+              var xend=asVec[j+2]-dc.chunkx*10;
+              var xmin=Math.min(xstart,xend);
+              var xmax=Math.max(xstart,xend);
+              for(var x=Math.floor(xmin);x<Math.ceil(xmax);x++){
+                if(x==Math.floor(xmin)||x==Math.ceil(xmax)-1){
 
-        {
-          var asVec=dc.asVec;
-          for(var j=0;j<asVec.length-2;j+=2){
-            var xstart=asVec[j+0]-dc.chunkx*10;
-            var xend=asVec[j+2]-dc.chunkx*10;
-            var xmin=Math.min(xstart,xend);
-            var xmax=Math.max(xstart,xend);
-            for(var x=Math.floor(xmin);x<Math.ceil(xmax);x++){
-              if(x==Math.floor(xmin)||x==Math.ceil(xmax)-1){
-
-                if(x==Math.floor(xmin)&&x==Math.ceil(xmax)-1){
-                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|(binUpTo(xmax-x)&binFrom(xmin-x));
-                }else if(x==Math.floor(xmin)){
-                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binFrom(xmin-x);
+                  if(x==Math.floor(xmin)&&x==Math.ceil(xmax)-1){
+                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|(binUpTo(xmax-x)&binFrom(xmin-x));
+                  }else if(x==Math.floor(xmin)){
+                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binFrom(xmin-x);
+                  }else{
+                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binUpTo(xmax-x);
+                  }
                 }else{
-                  worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binUpTo(xmax-x);
+                  worldskylightdata[dc.chunky][dc.chunkx][x]=-1;//111...1
                 }
-              }else{
-                worldskylightdata[dc.chunky][dc.chunkx][x]=-1;//111...1
               }
             }
           }
-
-
         }
       }
 

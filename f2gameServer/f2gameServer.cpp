@@ -124,6 +124,26 @@ private:
 
 		if (PlayerEnviromentHandler(datA, datB, fixA, fixB, isA, isB, isBegin))return;
 		if (PlayerEnviromentHandler(datB, datA, fixB, fixA, isB, isA, isBegin))return;
+
+		if (ItemItemHandler(datA, datB, fixA, fixB, isA, isB, isBegin))return;
+		if (ItemItemHandler(datB, datA, fixB, fixA, isB, isA, isBegin))return;
+	}
+	bool ItemItemHandler(gameObjectDat* datA, gameObjectDat* datB, b2Fixture* fixA, b2Fixture* fixB, bool isASensor, bool isBSensor, bool isBegin) {
+		if (datA->type != gameObjectType::ITEMTYPE)return false;
+		if (datB->type != gameObjectType::ITEMTYPE)return false;
+
+
+		Item* itmA = static_cast<Item*>(datA->obj);
+		Item* itmB = static_cast<Item*>(datB->obj);
+
+		if (!isBegin)return false;
+
+		if (itmA->itemtype != itmB->itemtype)return false;
+		itmA->count += itmB->count;
+		itmB->count = 0;
+		toDestroy->insert(new gameObjectDat(gameObjectType::ITEMTYPE, itmB));
+
+		return true;
 	}
 	bool PlayerItemHandler(gameObjectDat* datA, gameObjectDat* datB, b2Fixture* fixA , b2Fixture* fixB,bool isASensor, bool isBSensor, bool isBegin) {
 		if (datA->type != gameObjectType::ITEMTYPE)return false;
@@ -143,6 +163,19 @@ private:
 
 		return false;
 	}
+	void mapChange(std::unordered_map<b2Body*, int> &map, b2Body* bdy,int change) {
+		if (map.count(bdy)) {
+			map[bdy] += change;
+			if (map[bdy]<=0) {
+				map.erase(bdy);
+			}
+		}
+		else {
+			if (change>0) {
+				map[bdy] = change;
+			}
+		}
+	}
 	bool PlayerEnviromentHandler(gameObjectDat* datA, gameObjectDat* datB, b2Fixture* fixA, b2Fixture* fixB, bool isASensor, bool isBSensor, bool isBegin) {
 		if (datA->type != gameObjectType::PLAYERTYPE)return false;
 		if (datB->type == gameObjectType::ITEMTYPE)return false;
@@ -151,15 +184,15 @@ private:
 
 		Player* plyr = static_cast<Player*>(datA->obj);
 		if (fixA == plyr->groundDetectFixture) {
-			plyr->onground += isBegin ? 1 : -1;
+			mapChange(plyr->onground, fixB->GetBody(), isBegin ? 1 : -1);
 		}
 		else if (fixA == plyr->wallJumpLeftFixture) {
-			plyr->wallJumpLeft += isBegin ? 1 : -1;
+			mapChange(plyr->wallJumpLeft, fixB->GetBody(), isBegin ? 1 : -1);
+
 		}
 		else if (fixA == plyr->wallJumpRightFixture) {
-			plyr->wallJumpRight += isBegin ? 1 : -1;
+			mapChange(plyr->wallJumpRight, fixB->GetBody(), isBegin ? 1 : -1);
 		}
-		std::cout << "onground " << plyr->onground << " wallJumpLeft " << plyr->wallJumpLeft << " wallJumpRight " << plyr->wallJumpRight << "\n";
 		return false;
 	}
 };
@@ -179,6 +212,8 @@ public:
 		terrainBodyDef.type = b2_staticBody;
 		//chunk x,y goes from x,y to x+10,y+10
 		Chunk* chunk_array[worldyChunks][worldxChunks];
+		VisualChunk* visual_chunk_array[worldyChunks][worldxChunks];
+
 		auto addBlock = [this, &chunk_array](Block* newblock) {
 			updatedBlocks.insert(newblock);
 			int cx = newblock->x / 10, cy = newblock->y / 10;
@@ -378,6 +413,7 @@ public:
 						chunk_array[y][x] = new Chunk(x, y, phys_world, &terrainBodyDef, wholeMaterialShape, 0);
 
 					}
+					visual_chunk_array[y][x] = new VisualChunk(*chunk_array[y][x]);
 					//std::cout << "at "<<x<<", "<<y<<"\n";
 
 
@@ -417,7 +453,7 @@ public:
 				}
 				else if (e.type == DISCONNECT) {
 					connections.erase(e.hdl);
-					delete players[e.hdl];
+					toDestroy.insert(new gameObjectDat(gameObjectType::PLAYERTYPE,players[e.hdl]));
 					players.erase(e.hdl);
 				}
 				else if (e.type == MESSAGE) {
@@ -500,16 +536,16 @@ public:
 				float xaccel = .2;
 
 				if (thisplayer->movementkeyboard[0] && (!thisplayer->movementImpulseJumpLast)) {
-					if (thisplayer->onground > 0) {
+					if (thisplayer->onground.size()) {
 						if ( thisplayer->physBody->GetLinearVelocity().y < 8) {//W
 							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(0, 1.3), thisplayer->physBody->GetWorldCenter(), true);
 						}
 					}
 					else {
-						if ( thisplayer->wallJumpLeft > 0) {
+						if ( thisplayer->wallJumpLeft.size()) {
 							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(.9, .9), thisplayer->physBody->GetWorldCenter(), true);
 						}
-						if ( thisplayer->wallJumpRight > 0) {
+						if ( thisplayer->wallJumpRight.size()) {
 							thisplayer->physBody->ApplyLinearImpulse(b2Vec2(-.9, .9), thisplayer->physBody->GetWorldCenter(), true);
 
 						}
@@ -686,6 +722,7 @@ public:
 							if (xchunk < 0 || ychunk < 0 || xchunk >= worldxChunks || ychunk >= worldyChunks) {
 								continue;
 							}
+
 							Chunk* chunkhere = chunk_array[ychunk][xchunk];
 							for (b2Fixture* f = chunkhere->physBody->GetFixtureList(); f; f = f->GetNext())
 							{
@@ -704,13 +741,27 @@ public:
 									ClipperLib::Paths* pats = x.second;
 
 									for (ClipperLib::Path& pat : (*pats)) {
-										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk);
+										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk,false);
 										ls.addObjectAttributes(ccp.getAttributes());
 
 									}
 								}
 							}
+							VisualChunk* visualchunkhere = visual_chunk_array[ychunk][xchunk];
 
+							if ((!(thisplayer->viewChunks.count(chunkhere)))) {
+								for (auto const& x : visualchunkhere->materialShapes)
+								{
+									Chunk::Material mat = x.first;
+									ClipperLib::Paths* pats = x.second;
+
+									for (ClipperLib::Path& pat : (*pats)) {
+										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk,true);
+										ls.addObjectAttributes(ccp.getAttributes());
+
+									}
+								}
+							}
 						}
 					}
 
@@ -764,33 +815,60 @@ public:
 			}
 			updatedChunks.clear();
 
-			for (auto it = updatedBlocks.begin(); it != updatedBlocks.end(); ) {
 
-				if ((*it)->thisBlockType== Block::NULLBLOCK) {
-					delete (*it);
-					it = updatedBlocks.erase(it);
-				}
-				else {
-					++it;
-				}
-			}
-			updatedBlocks.clear();
+
+	
+
 
 			//PHYSICS
 			//std::cout << phys_world.GetBodyCount() << "\n";
+			phys_world.Step(std::min(70, lastlooplengthms) / 1000.0, 8, 3, 3);//do not simulate over 70ms
 			{
-
-				toDestroy.clear();
-
-				phys_world.Step(std::min(70, lastlooplengthms) / 1000.0, 8, 3, 3);//do not simulate over 70ms
+				for ( Block* it : updatedBlocks) {
+					if (it->thisBlockType == Block::NULLBLOCK) {
+						toDestroy.insert(new gameObjectDat(gameObjectType::BLOCKTYPE, it));
+					}
+					else {
+					}
+				}
+				updatedBlocks.clear();
+			}
+			{
 				for (const gameObjectDat* td : toDestroy){
 					if (td->type == gameObjectType::ITEMTYPE) {
-						delete (static_cast<Item*>(td->obj));
+						Item* obj = static_cast<Item*>(td->obj);
+						for (auto const& pr : players) {
+							pr.second->onground.erase(obj->physBody);
+							pr.second->wallJumpLeft.erase(obj->physBody);
+							pr.second->wallJumpRight.erase(obj->physBody);
+						}
+						delete obj;
+					}
+					else if (td->type == gameObjectType::BLOCKTYPE) {
+						Block* obj = static_cast<Block*>(td->obj);
+						for (auto const& pr : players) {
+							pr.second->onground.erase(obj->physBody);
+							pr.second->wallJumpLeft.erase(obj->physBody);
+							pr.second->wallJumpRight.erase(obj->physBody);
+						}
+						delete obj;
+					}
+					else if (td->type == gameObjectType::PLAYERTYPE){
+						Player* obj = static_cast<Player*>(td->obj);
+						for (auto const& pr : players) {
+							pr.second->onground.erase(obj->physBody);
+							pr.second->wallJumpLeft.erase(obj->physBody);
+							pr.second->wallJumpRight.erase(obj->physBody);
+						}
+						delete obj;
 					}
 					delete td;
+					td = NULL;
 				}
-
+				toDestroy.clear();
 			}
+
+
 			auto t2 = std::chrono::high_resolution_clock::now();
 			auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
 			lastlooplengthms = std::max(static_cast<int>(targetMSPT), static_cast<int>(duration));

@@ -57,7 +57,7 @@ Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<M
 	createBody();
 	for (size_t i = 0; i < 10; i++)
 	{
-		blocks.push_back(new Block(static_cast<Block::BlockType>(rand() % 8+1) , 10 * x+ rand() % 10, 10 * y + rand() % 10, world));
+		//blocks.push_back(new Block(static_cast<Block::BlockType>(rand() % 8+1) , 10 * x+ rand() % 10, 10 * y + rand() % 10, world));
 
 	}
 	/*
@@ -91,6 +91,7 @@ Chunk::Chunk(int x, int y, b2World& world, b2BodyDef* terrainBodyDef, std::map<M
 	*/
 
 }
+
 void Chunk::createBody() {//Optimise later
 
 	physBody->GetFixtureList();
@@ -137,14 +138,20 @@ void Chunk::createBody() {//Optimise later
 const std::vector< Chunk::Material> Chunk::materials = { Chunk::GRASS,  Chunk::DIRT,  Chunk::STONE };
 
 
+VisualChunk::VisualChunk(Chunk& orig):chunkx(orig.chunkx), chunky(orig.chunky) {
+
+	for (auto const& mat : orig.materialShapes)
+	{
+		materialShapes[mat.first] = new ClipperLib::Paths(*mat.second);
+	}
+}
 
 
-
-ClientChunkPiece::ClientChunkPiece(ClipperLib::Path* tc, unsigned char mT, unsigned int cx, unsigned int cy) : chunkx(cx), chunky(cy) {
+ClientChunkPiece::ClientChunkPiece(ClipperLib::Path* tc, unsigned char mT, unsigned int cx, unsigned int cy,unsigned char ib) : chunkx(cx), chunky(cy) {
 	if (tc != NULL) {
 
 		isWhole = ClipperLib::Orientation(*tc);
-
+		isBackground = ib;
 		materialType = mT;
 		for (size_t i = 0; i < (*tc).size(); i++)
 		{
@@ -155,18 +162,19 @@ ClientChunkPiece::ClientChunkPiece(ClipperLib::Path* tc, unsigned char mT, unsig
 	}
 }
 void** ClientChunkPiece::getAttributes() {
-	void** attrDat = new void* [5];
+	void** attrDat = new void* [6];
 	attrDat[0] = &isWhole;
 	attrDat[1] = &materialType;
 	attrDat[2] = &asVec;
 	attrDat[3] = &chunkx;
 	attrDat[4] = &chunky;
+	attrDat[5] = &isBackground;
 
 
 	return(attrDat);
 }
 std::vector < ListSerializer::dataType > ClientChunkPiece::getAttributeTypes() {
-	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::BYTE,ListSerializer::BYTE, ListSerializer::XYPAIRS, ListSerializer::UINT, ListSerializer::UINT };
+	std::vector < ListSerializer::dataType > attrtypes = { ListSerializer::BYTE,ListSerializer::BYTE, ListSerializer::XYPAIRS, ListSerializer::UINT, ListSerializer::UINT ,ListSerializer::BYTE };
 	return(attrtypes);
 };
 

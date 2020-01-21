@@ -43,7 +43,7 @@ function webGlINIT() {
 window.addEventListener("load", function() {
   globalInformation.blockdatacanvas = document.getElementById("blockdata");
   globalInformation.rendercanvas = document.getElementById("webglrender");
-  globalInformation.shadecanvas = document.getElementById("webglshader");
+  globalInformation.shadecanvas = document.getElementById("shadeshader");
 });
 
 function initBlockCanvas() {

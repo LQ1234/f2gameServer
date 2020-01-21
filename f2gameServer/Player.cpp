@@ -13,7 +13,7 @@
 
 
 Player::Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl) {
-	std::cout << "IMport " << this->onground << "\n ";
+	std::cout << "IMport " << this->onground.size() << "\n ";
 	hdl = conhdl;
 	name = nme;
 	b2BodyDef bodyDef;

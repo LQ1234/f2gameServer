@@ -10,6 +10,7 @@
 #include "gameObjectData.h"
 #include "Item.h"
 #include <vector>
+#include <unordered_map>
 
 
 
@@ -33,9 +34,10 @@ public:
 	float mouseposition[2];
 	bool mousedown = false;
 	bool movementImpulseJumpLast = false;
-	int onground = 0;
-	int wallJumpLeft = 0;
-	int wallJumpRight = 0;
+
+	std::unordered_map<b2Body*,int> onground;
+	std::unordered_map<b2Body*, int> wallJumpLeft;
+	std::unordered_map<b2Body*, int> wallJumpRight;
 
 	b2Fixture* itemCollectionFixture;
 	b2Fixture* groundDetectFixture;
