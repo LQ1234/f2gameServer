@@ -1,5 +1,5 @@
 #include <vector>
-#include <string> 
+#include <string>
 #include <sstream>
 #include <iostream>
 #include "ListSerializer.h"
@@ -19,23 +19,30 @@ void ListSerializer::addObjectAttributes(void* a[]) {
 		switch (adarr[in]) {
 		case STRING: {
 			std::string asStr = *static_cast<std::string*>(thisobj);
-			size_t strSize = (asStr.size());
-			currSerializedStream.write(reinterpret_cast<char const*>(&(strSize)), sizeof(size_t));//4
+
+			uint32_t strSize = (asStr.size());
+			currSerializedStream.write(reinterpret_cast<char const*>(&(strSize)), sizeof(uint32_t));//4
 			currSerializedStream.write(asStr.data(), strSize);//unk
 
 		}
-					 break;
+			break;
 		case UINT:
-			currSerializedStream.write(reinterpret_cast<char const*>(thisobj), sizeof(unsigned int));//4
-
+		{
+			uint32_t as32Bit=*reinterpret_cast<unsigned int const*>(thisobj);
+			currSerializedStream.write(reinterpret_cast<char const*>(&as32Bit), sizeof(uint32_t));//4
+			}
 			break;
 		case FLOAT:
+
 			currSerializedStream.write(reinterpret_cast<char const*>(thisobj), sizeof(float));//4
 
 			break;
 		case INTR:
-			currSerializedStream.write(reinterpret_cast<char const*>(thisobj), sizeof(int));//4
+		{
+			int32_t as32Bit=*reinterpret_cast<int const*>(thisobj);
 
+			currSerializedStream.write(reinterpret_cast<char const*>(&as32Bit), sizeof(int32_t));//4
+		}
 			break;
 		case BYTE://unsigned char
 			currSerializedStream.write(reinterpret_cast<char const*>(thisobj), sizeof(char));//1
@@ -43,14 +50,14 @@ void ListSerializer::addObjectAttributes(void* a[]) {
 			break;
 		case XYPAIRS: {
 			std::vector<float> asArr = *static_cast<std::vector<float>*>(thisobj);
-			size_t byteSze = asArr.size() * 4;
+			uint32_t byteSze = asArr.size() * 4;
 
-			currSerializedStream.write(reinterpret_cast<char const*>(&(byteSze)), sizeof(size_t));//4
+			currSerializedStream.write(reinterpret_cast<char const*>(&(byteSze)), sizeof(uint32_t));//4
 
 			currSerializedStream.write(reinterpret_cast<char const*>(&asArr[0]), byteSze);//4
 
 		}
-					  break;
+		break;
 
 		}
 		ci++;
@@ -75,17 +82,21 @@ std::string ListSerializer::serialize() {
 
 	for (auto i = serializedClasses.begin(); i != serializedClasses.end(); ++i) {
 		std::cout << "cont:";
-		printStringBytes(*i);
+		std::string str=*i;
+		char const *cstr = str.c_str();
+
+		for(int i=0;i<str.length();i++){
+			std::cout<<(cstr[i]%256+256)%256<<" ";
+		}
 		std::cout << "\n";
 	}*/
 	std::ostringstream fnal;
 	for (auto i = serializedClasses.begin(); i != serializedClasses.end(); ++i) {
-		size_t tsize = (*i).size();
-		fnal.write(reinterpret_cast<char const*>(&tsize), sizeof(size_t));//4
+		uint32_t tsize = (*i).size();
+		fnal.write(reinterpret_cast<char const*>(&tsize), sizeof(uint32_t));//4
 	}
 	for (auto i = serializedClasses.begin(); i != serializedClasses.end(); ++i) {
 		fnal.write((*i).data(), (*i).size());//4
 	}
 	return(fnal.str());
 }
-

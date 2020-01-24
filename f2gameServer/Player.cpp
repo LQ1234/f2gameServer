@@ -13,7 +13,6 @@
 
 
 Player::Player(b2World& world, std::string nme, websocketpp::connection_hdl conhdl) {
-	std::cout << "IMport " << this->onground.size() << "\n ";
 	hdl = conhdl;
 	name = nme;
 	b2BodyDef bodyDef;
@@ -105,7 +104,7 @@ void** Player::getAttributes() {
 	attrDat[1] = &y;
 	attrDat[2] = &xv;
 	attrDat[3] = &yv;
-	attrDat[4] = &rot; 
+	attrDat[4] = &rot;
 	attrDat[5] = &health;
 	attrDat[6] = &name;
 

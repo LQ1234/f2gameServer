@@ -2,7 +2,7 @@
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
 #include <websocketpp/common/thread.hpp>
-#include <unordered_map> 
+#include <unordered_map>
 
 /*
 #include <Box2D/Box2D.h>
@@ -100,7 +100,7 @@ public:
 	std::set<gameObjectDat*, decltype(toDestroyComparator)>* toDestroy;
 
 private:
-	
+
 	void BeginContact(b2Contact* contact) {
 		Contact(contact,true);
 	}
@@ -157,7 +157,7 @@ private:
 
 		if (plyr->itemCollectionFixture != fixB) return false;
 		if (!isBegin)return false;
-		
+
 		plyr->items[itm->itemtype] += itm->count;
 		toDestroy->insert(new gameObjectDat(gameObjectType::ITEMTYPE, itm));
 
@@ -203,7 +203,6 @@ public:
 
 
 	void game_loop() {
-
 
 		b2Vec2 phys_gravity(0.0f, -12.0f);
 		b2World phys_world(phys_gravity);
@@ -427,7 +426,7 @@ public:
 
 		}
 
-		
+
 
 		std::set<gameObjectDat*, decltype(toDestroyComparator)> toDestroy(toDestroyComparator);
 
@@ -598,7 +597,7 @@ public:
 
 							//thisplayer->items[itmtype] += amt;
 
-							
+
 							int spawnitemcount = std::min(10, (int)(amt / 5));
 							for (size_t i = 0; i < spawnitemcount; i++)
 							{
@@ -608,7 +607,7 @@ public:
 								float randyc = sin(randDir) * randDist;
 								new Item(phys_world, itmtype, amt / spawnitemcount, thisplayer->mouseposition[0] + randxc, thisplayer->mouseposition[1] + randyc);
 							}
-							
+
 						}
 
 						removeMatter(sub, Chunk::GRASS, minx, miny, maxx, maxy, false);
@@ -664,7 +663,6 @@ public:
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::PLAYERTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
-
 						ls.addObjectAttributes((static_cast<Player*>(dat->obj)->getAttributes()));
 
 					}
@@ -677,10 +675,10 @@ public:
 						Item* itm = static_cast<Item*>(dat->obj);
 						ls.addObjectAttributes(itm->getAttributes());
 						//Accelerate item here for efficiency
-						
+
 						b2Vec2 dis(thisplayer->x-itm->x, thisplayer->y-itm->y );
 						float len=dis.Normalize()/1.5;
-						
+
 						if(len>0)bod->ApplyForce(dis*std::min(1.5f,1/(len * len * len * len * len * len )), bod->GetWorldCenter(),true);
 					}
 					ls.setClassAttributes(Bullet::getAttributeTypes());
@@ -806,7 +804,16 @@ public:
 
 				//SEND TO PLAYER (WS)
 				try {
-					ws_server.send(thisplayer->hdl, ls.serialize(), websocketpp::frame::opcode::binary);
+					std::string str= ls.serialize();
+					/*
+					std::cout << "sinc:";
+					char const *cstr = str.c_str();
+
+					for(int i=0;i<str.length();i++){
+						std::cout<<(cstr[i]%256+256)%256<<" ";
+					}
+					std::cout<<"\n";*/
+					ws_server.send(thisplayer->hdl, str, websocketpp::frame::opcode::binary);
 				}
 				catch (websocketpp::exception const& e) {
 					std::cout << "Websocket error:" << e.what() << std::endl;
@@ -817,7 +824,7 @@ public:
 
 
 
-	
+
 
 
 			//PHYSICS
