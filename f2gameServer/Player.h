@@ -28,6 +28,7 @@ public:
 	float xv = 0;
 	float yv = 0;
 	float rot = 0;
+	float sprint = 0;//0 to 1
 	std::map<Item::ItemType, unsigned int> items;
 
 	bool movementkeyboard[4];
