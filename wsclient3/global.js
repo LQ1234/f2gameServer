@@ -36,10 +36,14 @@ var globalInformation = (()=>{
     backgroundrendercanvas: null,
     foregroundrendercanvas: null,
 
+    combinedshadercanvas:null,
+    combinedshadercanvasWebglObjs:{},
+
+
     blockdatacanvas: null,
     rendercanvas: null,
     shadecanvas:null,
-
+    skylightdatacanvas:null,
     lightPoints: [],
     lightColors: [],
 
@@ -50,9 +54,10 @@ var globalInformation = (()=>{
     shadeTrianglesWebglObjs:{},
     shadeTrianglesPointsVtxBfr:null,
     shadeMarkAsBg:-1234567890,//'magic number' to mark vertex as bg
+    shadeMarkAsSkylight:-531412421,//'magic number' to mark light as skylight
 
     renderscale: 32,
-    framespersec: 45,
+    framespersec: 450,
     currentframecount: 0,
     realframepersec: 0,
     thisplayer: {},

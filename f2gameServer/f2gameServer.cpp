@@ -551,9 +551,9 @@ public:
 				}
 				thisplayer->movementImpulseJumpLast = thisplayer->movementkeyboard[0];
 				float xaccel = .15+(thisplayer->onground.size()?(.35 + .2 * sqrt(thisplayer->sprint)) :0);
-				thisplayer->sprint += .02;
+				thisplayer->sprint -= .02;
 				if (thisplayer->onground.size() &&(thisplayer->movementkeyboard[1] || thisplayer->movementkeyboard[3])) {
-					thisplayer->sprint -= .03;
+					thisplayer->sprint += .03;
 
 				}
 				if (thisplayer->movementkeyboard[1] && thisplayer->physBody->GetLinearVelocity().x > -maxXVol) {//A
@@ -562,8 +562,8 @@ public:
 				if (thisplayer->movementkeyboard[3] && thisplayer->physBody->GetLinearVelocity().x < maxXVol) {//D
 					thisplayer->physBody->ApplyLinearImpulse(b2Vec2(xaccel, 0), thisplayer->physBody->GetWorldCenter(), true);
 				}
-				thisplayer->sprint = std::max(std::min(thisplayer->sprint, 1.f), 0.f);
-				std::cout << "thisplayer->sprint " << thisplayer->sprint << "\n";
+				thisplayer->sprint = std::max(std::min(thisplayer->sprint, 1.2f), 0.f);
+				//std::cout << "thisplayer->sprint " << thisplayer->sprint << "\n";
 				float currangle = -thisplayer->physBody->GetAngle();//0 is desired angle
 				currangle = std::fmod(currangle, M_PI * 2);
 				if (currangle > M_PI)currangle -= 2 * M_PI;

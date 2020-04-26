@@ -59,6 +59,7 @@ window.onload = function(inp) {
   globalInformation.basicrendercanvas = document.getElementById('basicrender');
   globalInformation.backgroundrendercanvas = document.getElementById('backgroundrender');
   globalInformation.foregroundrendercanvas = document.getElementById('foregroundrender');
+  globalInformation.skylightdatacanvas = document.getElementById('skylightdata');
 
   var basicrendercanvasctx = globalInformation.basicrendercanvas.getContext('2d');
 
@@ -86,13 +87,13 @@ window.onload = function(inp) {
   };
   var mousedown = false;
   //every item in the worldchunkdata 2d array is a client chunk piece array
-  function rendermateriallayers(){
-    function setup(canvas){
+  function rendermateriallayers() {
+    function setup(canvas) {
       if (canvas.width != globalInformation.vpblocks.x * globalInformation.renderscale || canvas.height != globalInformation.vpblocks.y * globalInformation.renderscale) {
         canvas.width = globalInformation.vpblocks.x * globalInformation.renderscale;
         canvas.height = globalInformation.vpblocks.y * globalInformation.renderscale;
       }
-      var ctx=canvas.getContext('2d');;
+      var ctx = canvas.getContext('2d');;
       ctx.setTransform(1, 0, 0, 1, 0, 0);;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.translate(globalInformation.vpblocks.x / 2 * globalInformation.renderscale, globalInformation.vpblocks.y / 2 * globalInformation.renderscale);
@@ -100,9 +101,9 @@ window.onload = function(inp) {
       return ctx;
     }
 
-    var backgroundrendercanvasctx=setup(globalInformation.backgroundrendercanvas);
+    var backgroundrendercanvasctx = setup(globalInformation.backgroundrendercanvas);
 
-    var foregroundrendercanvasctx=setup(globalInformation.foregroundrendercanvas);
+    var foregroundrendercanvasctx = setup(globalInformation.foregroundrendercanvas);
 
     {
       backgroundrendercanvasctx.save();
@@ -113,8 +114,7 @@ window.onload = function(inp) {
 
       for (var ychunk = cychunk - globalInformation.vpchunks.y; ychunk <= cychunk + globalInformation.vpchunks.y; ychunk++) {
         for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
-          if (xchunk < 0 || ychunk < 0 || xchunk >= globalInformation.worldsizechunks.x || ychunk >= globalInformation.worldsizechunks.y) continue;
-          {
+          if (xchunk < 0 || ychunk < 0 || xchunk >= globalInformation.worldsizechunks.x || ychunk >= globalInformation.worldsizechunks.y) continue; {
             let thischunk = worldbackgroundchunkdata[ychunk][xchunk]
             if (thischunk) {
               backgroundrendercanvasctx.globalCompositeOperation = 'source-over';
@@ -158,8 +158,7 @@ window.onload = function(inp) {
               }
 
             }
-          }
-          {
+          } {
             let thischunk = worldchunkdata[ychunk][xchunk]
             if (thischunk) {
               foregroundrendercanvasctx.globalCompositeOperation = 'source-over';
@@ -211,6 +210,7 @@ window.onload = function(inp) {
       foregroundrendercanvasctx.restore();
     }
   }
+  /*
   function basicrender() {
 
     if (globalInformation.basicrendercanvas.width != globalInformation.vpblocks.x * globalInformation.renderscale || globalInformation.basicrendercanvas.height != globalInformation.vpblocks.y * globalInformation.renderscale) {
@@ -224,8 +224,7 @@ window.onload = function(inp) {
 
 
     basicrendercanvasctx.translate(globalInformation.vpblocks.x / 2 * globalInformation.renderscale, globalInformation.vpblocks.y / 2 * globalInformation.renderscale);
-    basicrendercanvasctx.scale(globalInformation.renderscale, -globalInformation.renderscale);
-    {
+    basicrendercanvasctx.scale(globalInformation.renderscale, -globalInformation.renderscale); {
       basicrendercanvasctx.save();
 
       var cxchunk = Math.floor(globalInformation.cam.x / 10);
@@ -272,28 +271,7 @@ window.onload = function(inp) {
               }
               basicrendercanvasctx.closePath();
               basicrendercanvasctx.fill();
-            }/*
-            if(worldskylightdata[ychunk][xchunk]){
-              var thisdat=worldskylightdata[ychunk][xchunk];
-              basicrendercanvasctx.fillStyle = 'blue';
-
-              basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x, 10*ychunk- globalInformation.cam.y-.5,10,.5);
-
-              for(var i=0;i<10;i++){
-                for(var j=0;j<32;j++){
-                  if((thisdat[i]>>>(32-j))&1){
-                    basicrendercanvasctx.fillStyle = 'green';
-
-                    basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x+i+j/32, 10*ychunk- globalInformation.cam.y-.5,1/32,.5);
-                  }
-                }
-                basicrendercanvasctx.fillStyle = 'white';
-
-                basicrendercanvasctx.fillRect(10*xchunk - globalInformation.cam.x+i, 10*ychunk- globalInformation.cam.y-.5,1/60,.5);
-
-              }
-            }*/
-
+            }
           }
 
         }
@@ -424,7 +402,6 @@ window.onload = function(inp) {
       basicrendercanvasctx.save();
       globalInformation.renderlist[i](basicrendercanvasctx);
       basicrendercanvasctx.restore();
-
     }
 
     {
@@ -472,54 +449,73 @@ window.onload = function(inp) {
         thisitemtype++;
       }
     }
-  }
-  function calculateSkylight(cxchunk,cychunk){
-    var skylighthere = new Uint32Array(10*(globalInformation.vpchunks.x*2+1));
-    for (var ychunk =  cychunk + globalInformation.vpchunks.y+1; ychunk <globalInformation.worldsizechunks.y; ychunk++)
-    {
+  }*/
+
+  function calculateSkylight(cxchunk, cychunk) {
+    var skylighthere = new Uint32Array(10 * (globalInformation.vpchunks.x * 2 + 1));
+    for (var ychunk = cychunk + globalInformation.vpchunks.y + 1; ychunk < globalInformation.worldsizechunks.y; ychunk++) {
       for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
-        var thisskylight=worldskylightdata[ychunk][xchunk];
-        if(thisskylight){
-          for(var i=0;i<10;i++){
-            skylighthere[10*(xchunk-cxchunk+globalInformation.vpchunks.x)+i]|=thisskylight[i];
+        var thisskylight = worldskylightdata[ychunk][xchunk];
+        if (thisskylight) {
+          for (var i = 0; i < 10; i++) {
+            skylighthere[10 * (xchunk - cxchunk + globalInformation.vpchunks.x) + i] |= thisskylight[i];
           }
         }
       }
     }
     //                bytesPerPixel  blocksPerChunk                 chunksInViewportX  bytesPerBlock
-    let dat=new Uint8ClampedArray(4*            10*(globalInformation.vpchunks.x*2+1)*            32);
-    for(let i=0;i<10*(globalInformation.vpchunks.x*2+1);i++){
-      for(let j=0;j<32;j++){
-        dat[(i*32+j)*4]=(skylighthere[i]&(1<<(31-j)))===0?0:255;
-        dat[(i*32+j)*4+3]=255;
+    let dat = new Uint8ClampedArray(4 * 10 * (globalInformation.vpchunks.x * 2 + 1) * 32);
+    for (let i = 0; i < 10 * (globalInformation.vpchunks.x * 2 + 1); i++) {
+      for (let j = 0; j < 32; j++) {
+        dat[(i * 32 + j) * 4] = (skylighthere[i] & (1 << (31 - j))) === 0 ? 255 : 0;
+        dat[(i * 32 + j) * 4 + 3] = 255;
       }
     }
 
-    let canvas =document.getElementById("skylightdata"),
-        ctx = canvas.getContext('2d');
-    if(canvas.width!==32*(globalInformation.vpblocks.x)||canvas.height !== 1){
-      canvas.width = 32*(globalInformation.vpblocks.x);
+    let canvas = globalInformation.skylightdatacanvas,
+      ctx = canvas.getContext('2d');
+    if (canvas.width !== 32 * (globalInformation.vpblocks.x) || canvas.height !== 1) {
+      canvas.width = 32 * (globalInformation.vpblocks.x);
       canvas.height = 1;
     }
-    var imgDat = ctx.createImageData(dat.length/4, canvas.height);
+    var imgDat = ctx.createImageData(dat.length / 4, canvas.height);
     imgDat.data.set(dat);
-    ctx.putImageData(imgDat, 32*((cxchunk - globalInformation.vpchunks.x)*10-(globalInformation.vpblocks.x*-.5+globalInformation.cam.x)), 0);
+    ctx.putImageData(imgDat, 32 * ((cxchunk - globalInformation.vpchunks.x) * 10 - (globalInformation.vpblocks.x * -.5 + globalInformation.cam.x)), 0);
 
   }
-  function fancyrender(){
-    rendermateriallayers();
 
+  function fancyrender() {
+    rendermateriallayers(); {
+      function setup(canvas) {
+        var ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);;
+        ctx.translate(globalInformation.vpblocks.x / 2 * globalInformation.renderscale, globalInformation.vpblocks.y / 2 * globalInformation.renderscale);
+        ctx.scale(globalInformation.renderscale, -globalInformation.renderscale);
+        return ctx;
+      }
+
+      var foregroundrendercanvasctx = setup(globalInformation.foregroundrendercanvas);
+      foregroundrendercanvasctx.translate(-globalInformation.cam.x, -globalInformation.cam.y);
+
+      for (var i = 0; i < globalInformation.renderlist.length; i++) {
+        foregroundrendercanvasctx.save();
+        globalInformation.renderlist[i](foregroundrendercanvasctx);
+        foregroundrendercanvasctx.restore();
+      }
+    }
     var cxchunk = Math.floor(globalInformation.cam.x / 10);
     var cychunk = Math.floor(globalInformation.cam.y / 10);
 
-    calculateSkylight(cxchunk,cychunk);
+    calculateSkylight(cxchunk, cychunk);
 
     resetLineBuffer();
-    function translateToGLCoordsX(x){
-      return((x - globalInformation.cam.x)/globalInformation.vpblocks.x+.5)
+
+    function translateToGLCoordsX(x) {
+      return ((x - globalInformation.cam.x) / globalInformation.vpblocks.x + .5)
     }
-    function translateToGLCoordsY(y){
-      return((y - globalInformation.cam.y)/globalInformation.vpblocks.y+.5)
+
+    function translateToGLCoordsY(y) {
+      return ((y - globalInformation.cam.y) / globalInformation.vpblocks.y + .5)
     }
     for (var ychunk = cychunk - globalInformation.vpchunks.y; ychunk <= cychunk + globalInformation.vpchunks.y; ychunk++) {
       for (var xchunk = cxchunk - globalInformation.vpchunks.x; xchunk <= cxchunk + globalInformation.vpchunks.x; xchunk++) {
@@ -528,69 +524,68 @@ window.onload = function(inp) {
         var thischunk = worldchunkdata[ychunk][xchunk]
         if (thischunk) {
           for (var i = 0; i < thischunk.length; i++) {
-            for (var j = 0; j < thischunk[i].asVec.length-2; j += 2) {
-              addLineToBuffer(translateToGLCoordsX(thischunk[i].asVec[j    ]),
-                              translateToGLCoordsY(thischunk[i].asVec[j + 1]),
-                              translateToGLCoordsX(thischunk[i].asVec[j + 2]),
-                              translateToGLCoordsY(thischunk[i].asVec[j + 3]));
+            for (var j = 0; j < thischunk[i].asVec.length - 2; j += 2) {
+              addLineToBuffer(translateToGLCoordsX(thischunk[i].asVec[j]),
+                translateToGLCoordsY(thischunk[i].asVec[j + 1]),
+                translateToGLCoordsX(thischunk[i].asVec[j + 2]),
+                translateToGLCoordsY(thischunk[i].asVec[j + 3]));
             }
             addLineToBuffer(translateToGLCoordsX(thischunk[i].asVec[0]),
-                            translateToGLCoordsY(thischunk[i].asVec[1]),
-                            translateToGLCoordsX(thischunk[i].asVec[thischunk[i].asVec.length-2]),
-                            translateToGLCoordsY(thischunk[i].asVec[thischunk[i].asVec.length-1]));
+              translateToGLCoordsY(thischunk[i].asVec[1]),
+              translateToGLCoordsX(thischunk[i].asVec[thischunk[i].asVec.length - 2]),
+              translateToGLCoordsY(thischunk[i].asVec[thischunk[i].asVec.length - 1]));
           }
         }
       }
     }
 
-    //console.log(globalInformation.shadeTrianglesPointsIndex);
 
+    var k = 0;
+    worldblockdata.forEachFrom(10 * (cxchunk - globalInformation.vpchunks.x),
+      10 * (cychunk - globalInformation.vpchunks.y),
+      10 * (cxchunk + globalInformation.vpchunks.x + 1),
+      10 * (cychunk + globalInformation.vpchunks.y + 1), (o, x, y) => {
+        addLineToBuffer(translateToGLCoordsX(x), translateToGLCoordsY(y), translateToGLCoordsX(x + 1), translateToGLCoordsY(y));
+        addLineToBuffer(translateToGLCoordsX(x), translateToGLCoordsY(y + 1), translateToGLCoordsX(x + 1), translateToGLCoordsY(y + 1));
+        addLineToBuffer(translateToGLCoordsX(x), translateToGLCoordsY(y), translateToGLCoordsX(x), translateToGLCoordsY(y + 1));
+        addLineToBuffer(translateToGLCoordsX(x + 1), translateToGLCoordsY(y), translateToGLCoordsX(x + 1), translateToGLCoordsY(y + 1));
+      });
 
-    var k=0;
-    worldblockdata.forEachFrom(10*(cxchunk - globalInformation.vpchunks.x),
-                               10*(cychunk - globalInformation.vpchunks.y),
-                               10*(cxchunk + globalInformation.vpchunks.x+1),
-                               10*(cychunk + globalInformation.vpchunks.y+1),(o,x,y)=>{
-      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y),translateToGLCoordsX(x+1),translateToGLCoordsY(y));
-      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y+1),translateToGLCoordsX(x+1),translateToGLCoordsY(y+1));
-      addLineToBuffer(translateToGLCoordsX(x),translateToGLCoordsY(y),translateToGLCoordsX(x),translateToGLCoordsY(y+1));
-      addLineToBuffer(translateToGLCoordsX(x+1),translateToGLCoordsY(y),translateToGLCoordsX(x+1),translateToGLCoordsY(y+1));
-    });
-
-    for(var i=0;i<globalInformation.rendershadelist.length;i+=4){
-      addLineToBuffer(translateToGLCoordsX(globalInformation.rendershadelist[i]),translateToGLCoordsY(globalInformation.rendershadelist[i+1]),translateToGLCoordsX(globalInformation.rendershadelist[i+2]),translateToGLCoordsY(globalInformation.rendershadelist[i+3]));
+    for (var i = 0; i < globalInformation.rendershadelist.length; i += 4) {
+      addLineToBuffer(translateToGLCoordsX(globalInformation.rendershadelist[i]), translateToGLCoordsY(globalInformation.rendershadelist[i + 1]), translateToGLCoordsX(globalInformation.rendershadelist[i + 2]), translateToGLCoordsY(globalInformation.rendershadelist[i + 3]));
     }
 
     resetLightBuffer();
-    for(var i=0;i<globalInformation.renderslightlist.length;i+=5){
-      addLightToBuffer(translateToGLCoordsX(globalInformation.renderslightlist[i]),translateToGLCoordsY(globalInformation.renderslightlist[i+1]),globalInformation.renderslightlist[i+2],globalInformation.renderslightlist[i+3],globalInformation.renderslightlist[i+4]);
+    for (var i = 0; i < globalInformation.renderslightlist.length; i += 5) {
+      //addLightToBuffer(translateToGLCoordsX(globalInformation.renderslightlist[i]), translateToGLCoordsY(globalInformation.renderslightlist[i + 1]), globalInformation.renderslightlist[i + 2], globalInformation.renderslightlist[i + 3], globalInformation.renderslightlist[i + 4]);
     }
 
-    for(var x=0;x<1;x+=.05){
-        //addLightToBuffer(x,1,.5-Math.abs(x-.25),.5-Math.abs(x-.5),.5-Math.abs(x-.75));
+    for (var x = 0; x < 1; x += .05) {
+      //addLightToBuffer(x,1,.5-Math.abs(x-.25),.5-Math.abs(x-.5),.5-Math.abs(x-.75));
     }
 
     //addLightToBuffer(translateToGLCoordsX(globalInformation.thisplayer.x),translateToGLCoordsY(globalInformation.thisplayer.y),.5,.5,.5);
 
     //lightcolor*.5/(pow(1000/3.5,1.5)+.4)
     {
-      const dist=100*globalInformation.vpblocks.x;
-      const intensity=1/(.5/(Math.pow(dist/3.5,1.5)+.4));
-      addLightToBuffer(.5,100,intensity*0,intensity*1,intensity*.267);//its not a hack if its how it works in real life
+      addLightToBuffer(globalInformation.shadeMarkAsSkylight, 0, .4, .55,.7)
     }
-    //addLightToBuffer(globalInformation.debug.mp2.x,globalInformation.debug.mp2.y,1,1,1);
+    addLightToBuffer(globalInformation.debug.mp2.x, globalInformation.debug.mp2.y,.5, .5, .5);
 
-    renderShadingCanvases();
+    renderShadeCanvas();
+    renderCombinedCanvas();
+
   }
   //camera 20 by 12
 
-  function binUpTo(percent){
-    if(percent<1/32)return(0>>>0);
-    return(((-1<<((32*(1-percent))>>>0)>>>0)));
+  function binUpTo(percent) {
+    return (((-1 << ((32 * (1 - percent)) >>> 0) >>> 0)));
+    if (percent < 1 / 32) return (0 >>> 0);
   }
-  function binFrom(percent){
-    if(percent>=1)return(0>>>0);
-    return((-1>>>(32*(percent))));
+
+  function binFrom(percent) {
+    if (percent >= 1) return (0 >>> 0);
+    return ((-1 >>> (32 * (percent))));
   }
 
   var ws = new WebSocket("ws://localhost:9002");
@@ -675,56 +670,99 @@ window.onload = function(inp) {
 
       //Renderlist
       globalInformation.renderlist = [];
-      globalInformation.rendershadelist= [] ;
-      globalInformation.renderslightlist= [] ;
+      globalInformation.rendershadelist = [];
+      globalInformation.renderslightlist = [];
 
 
-      for (var i = 0; i < fds.players.length; i++) {/*
-        globalInformation.renderlist.push(function() {
-          var tp = fds.players[i];
-          return (function(ctx) {
+      for (var i = 0; i < fds.players.length; i++) {
+        function mult(a, b) {
+          return ({
+            x: a.x * b.x - a.y * b.y,
+            y: a.x * b.y + a.y * b.x
+          });
+        }
 
-            ctx.translate(tp.x, tp.y);
-            ctx.fillStyle = 'black';
+        {
+          let plr = fds.players[i];
 
-            ctx.rotate(tp.rot)
-            ctx.fillRect(-.4, 0, .8, 1.8);
+          let renderpoints = computePARenderPoints({
+            x: plr.x,
+            xv: plr.xv,
+            yv: plr.yv
           });
 
-        }());*/
-        {
-          var plr= fds.players[i];
+          let ang = plr.rot;
+          let rotVec = {
+            x: Math.cos(ang) / 3 * 2,
+            y: Math.sin(ang) * .8
+          };
+          let translate={
+            x:plr.x,
+            y:plr.y,
+          };
+          function drawLine(x1, y1, x2, y2) {
+            var a = mult({
+              x: x1,
+              y: y1
+            }, rotVec);
+            var b = mult({
+              x: x2,
+              y: y2
+            }, rotVec);
+            globalInformation.rendershadelist.push(a.x+translate.x, a.y+translate.y,b.x+translate.x, b.y+translate.y);
+          }
+          drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.hips.x, renderpoints.hips.y);
+          drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.rightElbow.x, renderpoints.rightElbow.y);
+          drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.leftElbow.x, renderpoints.leftElbow.y);
+          drawLine(renderpoints.rightKnee.x, renderpoints.rightKnee.y, renderpoints.hips.x, renderpoints.hips.y);
+          drawLine(renderpoints.leftKnee.x, renderpoints.leftKnee.y, renderpoints.hips.x, renderpoints.hips.y);
+          drawLine(renderpoints.rightKnee.x, renderpoints.rightKnee.y, renderpoints.rightFoot.x, renderpoints.rightFoot.y);
+          drawLine(renderpoints.leftKnee.x, renderpoints.leftKnee.y, renderpoints.leftFoot.x, renderpoints.leftFoot.y);
+          drawLine(renderpoints.rightElbow.x, renderpoints.rightElbow.y, renderpoints.rightHand.x, renderpoints.rightHand.y);
+          drawLine(renderpoints.leftElbow.x, renderpoints.leftElbow.y, renderpoints.leftHand.x, renderpoints.leftHand.y);
+          var hp = mult(renderpoints.head, rotVec);
 
-          let len=.4*Math.sqrt(2),
-              x1=plr.x+len*Math.cos(plr.rot+Math.PI*1/4), y1=plr.y+len*Math.sin(plr.rot+Math.PI*1/4),
-              x2=plr.x+len*Math.cos(plr.rot+Math.PI*3/4), y2=plr.y+len*Math.sin(plr.rot+Math.PI*3/4),
-              x3=plr.x+len*Math.cos(plr.rot+Math.PI*5/4), y3=plr.y+len*Math.sin(plr.rot+Math.PI*5/4),
-              x4=plr.x+len*Math.cos(plr.rot+Math.PI*7/4), y4=plr.y+len*Math.sin(plr.rot+Math.PI*7/4);
+          for(let r=0;r<5;r++){
+            let rot1=r/5*2*Math.PI;
+            let rot2=(r+1)/5*2*Math.PI;
+            let ax=Math.cos(rot1)*.26+hp.x+translate.x;
+            let ay=Math.sin(rot1)*.26+hp.y+translate.y;
 
-          globalInformation.rendershadelist.push(x1, y1, x2, y2);
-          globalInformation.rendershadelist.push(x2, y2, x3, y3);
-          globalInformation.rendershadelist.push(x3, y3, x4, y4);
-          globalInformation.rendershadelist.push(x4, y4, x1, y1);
+            let bx=Math.cos(rot2)*.26+hp.x+translate.x;
+            let by=Math.sin(rot2)*.26+hp.y+translate.y;
+            globalInformation.rendershadelist.push(ax, ay,bx, by);
 
+          }
         }
         {
-
           globalInformation.renderlist.push(function() {
-            var plr= fds.players[i];
+            var plr = fds.players[i];
 
             return (function(ctx) {
-              let renderpoints=computePARenderPoints({x:plr.x,xv:plr.xv,yv:plr.yv});
+              let renderpoints = computePARenderPoints({
+                x: plr.x,
+                xv: plr.xv,
+                yv: plr.yv
+              });
 
-              var ang=plr.rot;
-              var rotVec={x:Math.cos(ang)/3*2,y:Math.sin(ang)*.8};
-              function mult(a,b){
-                return({x:a.x*b.x-a.y*b.y,y:a.x*b.y+a.y*b.x})
-              }
-              function drawLine(x1,y1,x2,y2){
+              var ang = plr.rot;
+              var rotVec = {
+                x: Math.cos(ang) / 3 * 2,
+                y: Math.sin(ang) * .8
+              };
+
+
+              function drawLine(x1, y1, x2, y2) {
                 ctx.beginPath();
-                var a=mult({x:x1,y:y1},rotVec);
+                var a = mult({
+                  x: x1,
+                  y: y1
+                }, rotVec);
                 ctx.moveTo(a.x, a.y);
-                var b=mult({x:x2,y:y2},rotVec);
+                var b = mult({
+                  x: x2,
+                  y: y2
+                }, rotVec);
                 ctx.lineTo(b.x, b.y);
                 ctx.stroke();
               }
@@ -733,16 +771,16 @@ window.onload = function(inp) {
 
               ctx.translate(plr.x, plr.y);
 
-              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.hips.x,renderpoints.hips.y);
-              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.rightElbow.x,renderpoints.rightElbow.y);
-              drawLine(renderpoints.neck.x,renderpoints.neck.y,renderpoints.leftElbow.x,renderpoints.leftElbow.y);
-              drawLine(renderpoints.rightKnee.x,renderpoints.rightKnee.y,renderpoints.hips.x,renderpoints.hips.y);
-              drawLine(renderpoints.leftKnee.x,renderpoints.leftKnee.y,renderpoints.hips.x,renderpoints.hips.y);
-              drawLine(renderpoints.rightKnee.x,renderpoints.rightKnee.y,renderpoints.rightFoot.x,renderpoints.rightFoot.y);
-              drawLine(renderpoints.leftKnee.x,renderpoints.leftKnee.y,renderpoints.leftFoot.x,renderpoints.leftFoot.y);
-              drawLine(renderpoints.rightElbow.x,renderpoints.rightElbow.y,renderpoints.rightHand.x,renderpoints.rightHand.y);
-              drawLine(renderpoints.leftElbow.x,renderpoints.leftElbow.y,renderpoints.leftHand.x,renderpoints.leftHand.y);
-              var hp=mult(renderpoints.head,rotVec)
+              drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.hips.x, renderpoints.hips.y);
+              drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.rightElbow.x, renderpoints.rightElbow.y);
+              drawLine(renderpoints.neck.x, renderpoints.neck.y, renderpoints.leftElbow.x, renderpoints.leftElbow.y);
+              drawLine(renderpoints.rightKnee.x, renderpoints.rightKnee.y, renderpoints.hips.x, renderpoints.hips.y);
+              drawLine(renderpoints.leftKnee.x, renderpoints.leftKnee.y, renderpoints.hips.x, renderpoints.hips.y);
+              drawLine(renderpoints.rightKnee.x, renderpoints.rightKnee.y, renderpoints.rightFoot.x, renderpoints.rightFoot.y);
+              drawLine(renderpoints.leftKnee.x, renderpoints.leftKnee.y, renderpoints.leftFoot.x, renderpoints.leftFoot.y);
+              drawLine(renderpoints.rightElbow.x, renderpoints.rightElbow.y, renderpoints.rightHand.x, renderpoints.rightHand.y);
+              drawLine(renderpoints.leftElbow.x, renderpoints.leftElbow.y, renderpoints.leftHand.x, renderpoints.leftHand.y);
+              var hp = mult(renderpoints.head, rotVec)
               ctx.beginPath();
               ctx.arc(hp.x, hp.y, .26, 0, 2 * Math.PI);
               ctx.stroke();
@@ -767,17 +805,19 @@ window.onload = function(inp) {
             ctx.fillRect(-.5 / 2, -.1 / 2, .5, .1);
           });
 
-        }());
-        {
-          var itm= fds.items[i];
+        }()); {
+          var itm = fds.items[i];
 
-          let len=Math.hypot((-.1 / 2), (-.5 / 2)),
-              dir=Math.atan((-.1 / 2)/(-.5 / 2)),
-              x1=itm.x+len*Math.cos(itm.rot+ dir          ), y1=itm.y+len*Math.sin(itm.rot+ dir          ),
-              x2=itm.x+len*Math.cos(itm.rot+ (Math.PI-dir)), y2=itm.y+len*Math.sin(itm.rot+ (Math.PI-dir)),
-              x3=itm.x+len*Math.cos(itm.rot+-(Math.PI-dir)), y3=itm.y+len*Math.sin(itm.rot+-(Math.PI-dir));
-              x4=itm.x+len*Math.cos(itm.rot+-dir          ), y4=itm.y+len*Math.sin(itm.rot+-dir          ),
-          globalInformation.rendershadelist.push(x1, y1, x2, y2);
+          let len = Math.hypot((-.1 / 2), (-.5 / 2)),
+            dir = Math.atan((-.1 / 2) / (-.5 / 2)),
+            x1 = itm.x + len * Math.cos(itm.rot + dir),
+            y1 = itm.y + len * Math.sin(itm.rot + dir),
+            x2 = itm.x + len * Math.cos(itm.rot + (Math.PI - dir)),
+            y2 = itm.y + len * Math.sin(itm.rot + (Math.PI - dir)),
+            x3 = itm.x + len * Math.cos(itm.rot + -(Math.PI - dir)),
+            y3 = itm.y + len * Math.sin(itm.rot + -(Math.PI - dir));
+          x4 = itm.x + len * Math.cos(itm.rot + -dir), y4 = itm.y + len * Math.sin(itm.rot + -dir),
+            globalInformation.rendershadelist.push(x1, y1, x2, y2);
           globalInformation.rendershadelist.push(x2, y2, x3, y3);
           globalInformation.rendershadelist.push(x3, y3, x4, y4);
           globalInformation.rendershadelist.push(x4, y4, x1, y1);
@@ -815,13 +855,13 @@ window.onload = function(inp) {
 
       for (var i = 0; i < fds.clientChunkPieces.length; i++) {
         var dc = fds.clientChunkPieces[i];
-        if(dc.isBackground){
+        if (dc.isBackground) {
           if (!hasbeentouchedbg[dc.chunkx + "|" + dc.chunky]) { //quick fix
             worldbackgroundchunkdata[dc.chunky][dc.chunkx] = [];
           }
           hasbeentouchedbg[dc.chunkx + "|" + dc.chunky] = true;
           worldbackgroundchunkdata[dc.chunky][dc.chunkx].push(dc);
-        }else{
+        } else {
           if (!hasbeentouched[dc.chunkx + "|" + dc.chunky]) { //quick fix
             worldchunkdata[dc.chunky][dc.chunkx] = [];
             worldskylightdata[dc.chunky][dc.chunkx] = new Uint32Array(10);
@@ -830,24 +870,24 @@ window.onload = function(inp) {
           worldchunkdata[dc.chunky][dc.chunkx].push(dc);
 
           {
-            var asVec=dc.asVec;
-            for(var j=0;j<asVec.length-2;j+=2){
-              var xstart=asVec[j+0]-dc.chunkx*10;
-              var xend=asVec[j+2]-dc.chunkx*10;
-              var xmin=Math.min(xstart,xend);
-              var xmax=Math.max(xstart,xend);
-              for(var x=Math.floor(xmin);x<Math.ceil(xmax);x++){
-                if(x==Math.floor(xmin)||x==Math.ceil(xmax)-1){
+            var asVec = dc.asVec;
+            for (var j = 0; j < asVec.length - 2; j += 2) {
+              var xstart = asVec[j + 0] - dc.chunkx * 10;
+              var xend = asVec[j + 2] - dc.chunkx * 10;
+              var xmin = Math.min(xstart, xend);
+              var xmax = Math.max(xstart, xend);
+              for (var x = Math.floor(xmin); x < Math.ceil(xmax); x++) {
+                if (x == Math.floor(xmin) || x == Math.ceil(xmax) - 1) {
 
-                  if(x==Math.floor(xmin)&&x==Math.ceil(xmax)-1){
-                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|(binUpTo(xmax-x)&binFrom(xmin-x));
-                  }else if(x==Math.floor(xmin)){
-                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binFrom(xmin-x);
-                  }else{
-                    worldskylightdata[dc.chunky][dc.chunkx][x]=(worldskylightdata[dc.chunky][dc.chunkx][x])|binUpTo(xmax-x);
+                  if (x == Math.floor(xmin) && x == Math.ceil(xmax) - 1) {
+                    worldskylightdata[dc.chunky][dc.chunkx][x] = (worldskylightdata[dc.chunky][dc.chunkx][x]) | (binUpTo(xmax - x) & binFrom(xmin - x));
+                  } else if (x == Math.floor(xmin)) {
+                    worldskylightdata[dc.chunky][dc.chunkx][x] = (worldskylightdata[dc.chunky][dc.chunkx][x]) | binFrom(xmin - x);
+                  } else {
+                    worldskylightdata[dc.chunky][dc.chunkx][x] = (worldskylightdata[dc.chunky][dc.chunkx][x]) | binUpTo(xmax - x);
                   }
-                }else{
-                  worldskylightdata[dc.chunky][dc.chunkx][x]=-1;//111...1
+                } else {
+                  worldskylightdata[dc.chunky][dc.chunkx][x] = -1; //111...1
                 }
               }
             }
@@ -910,18 +950,18 @@ window.onload = function(inp) {
     mousedown = false;
   });
   window.addEventListener("mousemove", function(evt) {
-    var rect = globalInformation.basicrendercanvas.getBoundingClientRect();
+    var rect = globalInformation.combinedshadercanvas.getBoundingClientRect();
     mousepos.x = evt.clientX - rect.left;
     mousepos.y = evt.clientY - rect.top;
 
-    var mp2={};
-    rect = globalInformation.shadecanvas.getBoundingClientRect();
+    var mp2 = {};
+    //rect = globalInformation.shadecanvas.getBoundingClientRect();
     mp2.x = evt.clientX - rect.left;
     mp2.y = evt.clientY - rect.top;
-    mp2.x/=rect.width;
-    mp2.y/=rect.height;
-    mp2.y=1-mp2.y;
-    globalInformation.debug.mp2=mp2;
+    mp2.x /= rect.width;
+    mp2.y /= rect.height;
+    mp2.y = 1 - mp2.y;
+    globalInformation.debug.mp2 = mp2;
     //mousepos.x=event;
   });
 
@@ -943,7 +983,7 @@ window.onload = function(inp) {
   function frame() {
     var t0 = performance.now();
     try {
-      basicrender();
+      //basicrender();
       fancyrender();
       doIO();
       globalInformation.currentframecount++;
@@ -956,11 +996,27 @@ window.onload = function(inp) {
 
 
   }
-  setInterval(()=>{
-    globalInformation.realframepersec=globalInformation.currentframecount;
-    console.log("FPS: "+globalInformation.realframepersec);
-    globalInformation.currentframecount=0;
-  },1000);
+  setInterval(() => {
+    globalInformation.realframepersec = globalInformation.currentframecount;
+    console.log("FPS: " + globalInformation.realframepersec);
+    globalInformation.currentframecount = 0;
+  }, 1000);
+  {
+    let maxX=26.6,
+        maxY=15;
+    let wX=window.innerWidth,
+        wY=window.innerHeight;
+    if(maxX/maxY>wX/wY){
+      var cX=wX/wY*maxY;
+      var cY=maxY;
+    }else{
+      var cX=maxX;
+      var cY=wY/wX*maxX;
+    }
+    globalInformation.vpblocks.x=cX;
+    globalInformation.vpblocks.y=cY;
+    globalInformation.renderscale=Math.max(wX/cX,wY/cY);
+  }
   webGlINIT();
 
   frame();
