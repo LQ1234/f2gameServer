@@ -206,7 +206,9 @@ public:
 
 		b2Vec2 phys_gravity(0.0f, -12.0f);
 		b2World phys_world(phys_gravity);
-
+		const b2ParticleSystemDef particleSystemDef;
+		b2ParticleSystem* phys_particle_system= phys_world.CreateParticleSystem(&particleSystemDef);
+		phys_particle_system->SetRadius(.15);
 		b2BodyDef terrainBodyDef;
 		terrainBodyDef.type = b2_staticBody;
 		//chunk x,y goes from x,y to x+10,y+10
@@ -436,9 +438,21 @@ public:
 		int timetillnextsec = 0;
 		int lastlooplengthms = 0;
 
+		for (int i = 0; i < 1000;i++) {
+			b2ParticleDef pd;
+			pd.flags = b2_powderParticle;
+			pd.color.Set(0, 0, 255, 255);
+			pd.position.Set(worldxChunks * 10 / 2+i/100.0, TerrainGeneration::getGrassLevel(worldxChunks * 10 / 2) + 5);
+
+			phys_particle_system->CreateParticle(pd);
+		}
 		while (1) {
 			auto t1 = std::chrono::high_resolution_clock::now();
 
+			//Particle
+			
+
+			
 			//EVENTS
 			while (event_queue.size()) {
 				unique_lock<mutex> lock(event_queue_lock);
@@ -636,17 +650,16 @@ public:
 			ClientChunkPiece
 			Block
 			*/
-
 			for (auto const& pr : players)
 			{
 
 				Player* thisplayer = pr.second;
-				ListSerializer ls;
+				thisplayer->ls = ListSerializer();
 				//PLAYER SELF UPDATE
 				{
-					ls.setClassAttributes(ClientThisPlayer::getAttributeTypes());
+					thisplayer->ls.setClassAttributes(ClientThisPlayer::getAttributeTypes());
 					ClientThisPlayer tp(thisplayer);
-					ls.addObjectAttributes(tp.getAttributes());
+					thisplayer->ls.addObjectAttributes(tp.getAttributes());
 				}
 
 				//PLAYER OBJECT UPDATE
@@ -662,22 +675,22 @@ public:
 					aabb.upperBound = xy2;
 					phys_world.QueryAABB(&cb, aabb);
 
-					ls.setClassAttributes(Player::getAttributeTypes());
+					thisplayer->ls.setClassAttributes(Player::getAttributeTypes());
 
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::PLAYERTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
-						ls.addObjectAttributes((static_cast<Player*>(dat->obj)->getAttributes()));
+						thisplayer->ls.addObjectAttributes((static_cast<Player*>(dat->obj)->getAttributes()));
 
 					}
 
-					ls.setClassAttributes(Item::getAttributeTypes());
+					thisplayer->ls.setClassAttributes(Item::getAttributeTypes());
 
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::ITEMTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 						Item* itm = static_cast<Item*>(dat->obj);
-						ls.addObjectAttributes(itm->getAttributes());
+						thisplayer->ls.addObjectAttributes(itm->getAttributes());
 						//Accelerate item here for efficiency
 
 						b2Vec2 dis(thisplayer->x-itm->x, thisplayer->y-itm->y );
@@ -685,22 +698,22 @@ public:
 
 						if(len>0)bod->ApplyForce(dis*std::min(1.5f,1/(len * len * len * len * len * len )), bod->GetWorldCenter(),true);
 					}
-					ls.setClassAttributes(Bullet::getAttributeTypes());
+					thisplayer->ls.setClassAttributes(Bullet::getAttributeTypes());
 
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::BULLETTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
-						ls.addObjectAttributes((static_cast<Bullet*>(dat->obj)->getAttributes()));
+						thisplayer->ls.addObjectAttributes((static_cast<Bullet*>(dat->obj)->getAttributes()));
 
 					}
-					ls.setClassAttributes(Potion::getAttributeTypes());
+					thisplayer->ls.setClassAttributes(Potion::getAttributeTypes());
 
 					for (b2Body* bod : cb.fvp[static_cast<int>(gameObjectType::POTIONTYPE)]) {
 
 						gameObjectDat* dat = static_cast<gameObjectDat*>(bod->GetUserData());
 
-						ls.addObjectAttributes((static_cast<Potion*>(dat->obj)->getAttributes()));
+						thisplayer->ls.addObjectAttributes((static_cast<Potion*>(dat->obj)->getAttributes()));
 
 					}
 
@@ -710,7 +723,7 @@ public:
 				//PLAYER CHUNK UPDATE
 				{
 					{
-						ls.setClassAttributes(ClientChunkPiece::getAttributeTypes());
+						thisplayer->ls.setClassAttributes(ClientChunkPiece::getAttributeTypes());
 					}
 
 					const int cxchunk = (pr.second->x) / 10;
@@ -744,7 +757,7 @@ public:
 
 									for (ClipperLib::Path& pat : (*pats)) {
 										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk,false);
-										ls.addObjectAttributes(ccp.getAttributes());
+										thisplayer->ls.addObjectAttributes(ccp.getAttributes());
 
 									}
 								}
@@ -759,7 +772,7 @@ public:
 
 									for (ClipperLib::Path& pat : (*pats)) {
 										ClientChunkPiece ccp(&pat, mat, xchunk, ychunk,true);
-										ls.addObjectAttributes(ccp.getAttributes());
+										thisplayer->ls.addObjectAttributes(ccp.getAttributes());
 
 									}
 								}
@@ -771,7 +784,7 @@ public:
 
 				{
 					{
-						ls.setClassAttributes(Block::getAttributeTypes());
+						thisplayer->ls.setClassAttributes(Block::getAttributeTypes());
 					}
 
 					const int cxchunk = (pr.second->x) / 10;
@@ -791,7 +804,7 @@ public:
 							if (updatedChunks.count(chunkhere) || (!(thisplayer->viewChunks.count(chunkhere)))) {
 								for (size_t i = 0; i < chunkhere->blocks.size(); i++)
 								{
-									ls.addObjectAttributes(chunkhere->blocks[i]->getAttributes());
+									thisplayer->ls.addObjectAttributes(chunkhere->blocks[i]->getAttributes());
 								}
 							}
 
@@ -801,14 +814,38 @@ public:
 					for (Block* block : updatedBlocks)
 					{
 						if(thisplayer->x-viewportX*10 <block->x&& block->x < thisplayer->x + viewportX*10&&
-							thisplayer->y - viewportYMinus * 10 < block->y && block->y < thisplayer->y + viewportYPlus * 10)ls.addObjectAttributes(block->getAttributes());
+							thisplayer->y - viewportYMinus * 10 < block->y && block->y < thisplayer->y + viewportYPlus * 10)thisplayer->ls.addObjectAttributes(block->getAttributes());
 					}
 
 				}
+				//particle
+				thisplayer->ls.setClassAttributes({ListSerializer::FLOAT, ListSerializer::FLOAT, ListSerializer::BYTE, ListSerializer::BYTE, ListSerializer::BYTE});
+			}
 
+			for (int particle = 0; particle < phys_particle_system->GetParticleCount();particle++) {
+				b2Vec2 pos = phys_particle_system->GetPositionBuffer()[particle];
+				b2ParticleColor col=phys_particle_system->GetColorBuffer()[particle];
+				for (auto const& pr : players)
+				{
+					Player* thisplayer = pr.second;
+					if (thisplayer->x - 10 * viewportX<pos.x&&pos.x< thisplayer->x + 10 * viewportX&& thisplayer->y - 10 * viewportYMinus<pos.y&&pos.y< thisplayer->y + 10 * viewportYPlus) {
+						void** attrDat = new void* [5];
+						attrDat[0] = &pos.x;
+						attrDat[1] = &pos.y;
+						attrDat[2] = &col.r;
+						attrDat[3] = &col.g;
+						attrDat[4] = &col.b;
+						thisplayer->ls.addObjectAttributes(attrDat);
+					}
+				}
+			}
+
+			for (auto const& pr : players)
+			{
 				//SEND TO PLAYER (WS)
+				Player* thisplayer = pr.second;
 				try {
-					std::string str= ls.serialize();
+					std::string str = thisplayer->ls.serialize();
 					/*
 					std::cout << "sinc:";
 					char const *cstr = str.c_str();

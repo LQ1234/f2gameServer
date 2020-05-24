@@ -16,7 +16,7 @@
 
 class Player :Serializable {
 public:
-
+	ListSerializer ls;
 	b2Body* physBody;
 	b2World* wrd;
 	websocketpp::connection_hdl hdl;
